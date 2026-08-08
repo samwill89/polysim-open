@@ -1,0 +1,30 @@
+name: systematic
+description: >
+  Conservative, diversified, risk-managed. Mirrors the base spec defaults.
+  Designed to survive long enough to learn.
+position_sizing_mode: fixed
+fixed_copy_cents: 5000
+max_pct_per_position: 0.02
+max_open_positions: 20
+max_pct_per_source_wallet: 0.10
+max_pct_per_market: 0.05
+min_market_odds: null
+max_market_odds: null
+max_market_daily_volume_cents: null
+min_market_daily_volume_cents: null
+allowed_detectors: null
+min_composite_score: 5.0
+stop_loss_enabled: true
+stop_loss_pct: 0.50
+drawdown_limit_pct: 0.40
+daily_loss_limit_pct: 0.15
+compound_winnings: false
+risk_intelligence_policy: require_verified_edge
+risk_min_source_quality: 0.60
+risk_max_rumor_risk: 0.50
+risk_max_information_asymmetry: 0.65
+risk_min_probability_confidence: 0.65
+risk_min_edge_after_cost_cents: 2.0
+risk_uncertainty_penalty_max_cents: 10.0
+max_correlated_positions_per_subject: 1
+max_subject_exposure_pct: 0.02

@@ -1,0 +1,3 @@
+{"id":"m_openai_o4","slug":"openai-o4-by-may-1","question":"Will OpenAI release o4 by May 1?","category":"ai","created_at":"2026-04-01T00:00:00Z","resolves_at":"2026-05-01T00:00:00Z","daily_volume_usd_cents":850000000}
+{"id":"m_claude5_q3","slug":"anthropic-claude-5-q3","question":"Will Anthropic launch Claude 5 by end of Q3 2026?","category":"ai","created_at":"2026-04-10T00:00:00Z","resolves_at":"2026-09-30T23:59:59Z","daily_volume_usd_cents":4720000}
+{"id":"m_autodesk_q1","slug":"autodesk-q1-revenue","question":"Will Autodesk beat Q1 revenue expectations?","category":"aec","created_at":"2026-03-15T00:00:00Z","resolves_at":"2026-05-20T00:00:00Z","daily_volume_usd_cents":220000000}

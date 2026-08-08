@@ -1,0 +1,3 @@
+{"id":"t_000001","wallet_address":"0x8af00000000000000000000000000000000c2a1","market_id":"m_openai_o4","side":"BUY","outcome":"YES","size_shares":238,"price_cents":63,"timestamp":"2026-04-19T14:32:11Z","tx_hash":null}
+{"id":"t_000002","wallet_address":"0x21c000000000000000000000000000000009d83","market_id":"m_autodesk_q1","side":"SELL","outcome":"NO","size_shares":55,"price_cents":72,"timestamp":"2026-04-19T14:32:14Z","tx_hash":null}
+{"id":"t_000003","wallet_address":"0xaf4d02c1b5e882f0a7d3c4e5f6a7b8c90011","market_id":"m_claude5_q3","side":"BUY","outcome":"YES","size_shares":4800,"price_cents":32,"timestamp":"2026-04-19T13:44:01Z","tx_hash":null}

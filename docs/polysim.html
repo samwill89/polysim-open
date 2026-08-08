@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PolySim — Developer Handoff</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d;
+    --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff;
+    --green:#3fb950; --red:#f85149; --yellow:#d29922; --purple:#bc8cff;
+    --mono:'SF Mono', Consolas, Monaco, monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0 auto; max-width:980px; padding:2rem 1.5rem 4rem;
+       background:var(--bg); color:var(--text);
+       font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+       line-height:1.6; font-size:16px}
+  h1{font-size:2.1rem;margin:0 0 .3em;letter-spacing:-.02em}
+  h2{font-size:1.45rem;margin-top:2.2em;padding-bottom:.3em;
+     border-bottom:1px solid var(--border);letter-spacing:-.01em}
+  h3{font-size:1.15rem;margin-top:1.8em;color:var(--accent)}
+  p{margin:.8em 0}
+  code{background:#11161d;padding:.1em .4em;border-radius:3px;
+       font-family:var(--mono);font-size:.9em;color:var(--purple)}
+  pre{background:#010409;color:#e6edf3;padding:.9rem 1.1rem;
+      border-radius:6px;overflow:auto;font-family:var(--mono);
+      font-size:.82rem;line-height:1.45;border:1px solid var(--border)}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .tag{display:inline-block;padding:.15em .55em;border:1px solid;
+       border-radius:3px;font-size:.7em;font-weight:600;
+       letter-spacing:.05em;vertical-align:middle;margin-left:.4em}
+  .tag.paper{color:var(--red);border-color:var(--red)}
+  .tag.handoff{color:var(--accent);border-color:var(--accent)}
+  table{width:100%;border-collapse:collapse;margin:1em 0;
+        font-size:.9rem}
+  th,td{padding:.5em .7em;text-align:left;
+        border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;background:#11161d}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;
+                font-family:var(--mono)}
+  .muted{color:var(--muted)}
+  .callout{background:#11161d;border-left:3px solid var(--accent);
+           padding:.7em 1em;margin:1em 0;font-size:.95em}
+  .callout.warn{border-color:var(--yellow)}
+  ul,ol{padding-left:1.5em}
+  li{margin:.3em 0}
+  .meta{color:var(--muted);font-size:.85em;margin-top:-.6em}
+  hr{border:0;border-top:1px solid var(--border);margin:2em 0}
+</style>
+</head>
+<body>
+
+<h1>PolySim — Developer Handoff
+  <span class="tag paper">PAPER ONLY</span>
+  <span class="tag handoff">replication brief</span>
+</h1>
+<p class="meta">
+  Prediction-market insider-detection &amp; paper copy-trading simulator
+  · Polymarket-only · self-hosted single-operator · designed to run on a
+  small Linux VPS.
+</p>
+
+<div class="callout">
+  <strong>Scope of this document:</strong> everything a developer needs to
+  replicate the application architecture, deploy it on a VPS, and operate
+  it. Strategy-performance numbers, P&amp;L, and balances are intentionally
+  out of scope — they're separate operational data, not part of the build.
+</div>
+
+<h2>1. What PolySim Does</h2>
+<p>
+  PolySim ingests every trade on Polymarket, ranks wallets by skill-weighted
+  P&amp;L to build a "cohort" of the top performers, then <em>mirrors</em>
+  every BUY and SELL those wallets make into paper portfolios. When a cohort
+  wallet exits, we exit. No real money is ever placed — every order is
+  simulated against a captured order-book snapshot with realistic fill,
+  slippage, and settlement-delay modelling.
+</p>
+<p>
+  The product is <strong>permanently paper-only</strong>: a CI grep
+  (<code>scripts/ci_safety.py</code>) refuses to ship if any code path
+  reaches a live order-placement API. Spec §2 and §16 forbid live trading.
+</p>
+
+<h2>2. High-level Architecture</h2>
+
+<pre>
+                Polymarket ─── WS ───────┐
+                Gamma REST   ── REST ────┤
+                Alchemy CTF logs ── RPC ─┤
+                                         ▼
+                          ┌─────────────────────────┐
+                          │  IngestPipeline         │
+                          │  trades / markets       │
+                          └────────────┬────────────┘
+                                       │
+                                       ▼
+        ┌──────────────────────────────────────────────────────┐
+        │ DiscoveryRefreshLoop (every 6h)                      │
+        │  features (Polars) → classifier → cohort freeze      │
+        │  → wallets_discovery.is_cohort = 1                   │
+        └────────────────────────┬─────────────────────────────┘
+                                 │
+                                 ▼
+        ┌──────────────────────────────────────────────────────┐
+        │ CopyOnCohortLoop (every 15s)                         │
+        │  cohort BUY  ≥ $10  →  synthesize CohortCopy flag    │
+        │  cohort SELL        →  close matching paper position │
+        └────────────────────────┬─────────────────────────────┘
+                                 │
+                                 ▼
+        ┌──────────────────────────────────────────────────────┐
+        │ Dispatcher → ProfilePaperExecutor (per risk profile) │
+        │  market filter · sizing · depth cap · drawdown gate  │
+        │  → simulated fill (latency + slippage model)         │
+        │  → paper_positions / paper_fills                     │
+        └──────────────────────────────────────────────────────┘
+</pre>
+
+<h2>3. Components</h2>
+<ul>
+  <li><strong>IngestPipeline</strong> — WebSocket subscriber for live trades,
+      Gamma REST for market metadata, Alchemy event-log scraper for the
+      CTF (Conditional Tokens Framework) when WS lags.</li>
+  <li><strong>DiscoveryRefreshLoop</strong> — every 6 hours, extracts
+      ~30 features per wallet using Polars, runs a sigmoid-logistic
+      classifier (no LLM), selects the top N by skill-adjusted P&amp;L,
+      writes them into the cohort table. The cohort drifts as new whales
+      surface in the ingest stream.</li>
+  <li><strong>CopyOnCohortLoop</strong> — the strategy. Polls
+      <code>trades</code> on a 15s watermark. Each cohort BUY above the
+      configured minimum notional becomes a synthetic flag. Each cohort
+      SELL closes the matching paper position at the cohort's exit price,
+      booking realized P&amp;L.</li>
+  <li><strong>ScoringLoop</strong> — legacy detector-based scoring
+      (CategoryInsider, EventInsider, Coordination, Timing, FreshWallet).
+      Disabled by default after calibration; kept in the tree for
+      experimentation.</li>
+  <li><strong>Dispatcher → ProfilePaperExecutor</strong> — fans each flag
+      to N paper runs (one per risk profile). The executor applies
+      market-side filters (volume, odds bounds), position sizing
+      (fixed/percentage/kelly), depth-cap, drawdown-gate, daily-loss
+      gate, then simulates a fill against the most-recent orderbook
+      snapshot via the walk-the-book <code>FillModel</code>.</li>
+  <li><strong>FillModel</strong> — log-normal detection + decision
+      latency, partial fills on thin books, configurable slippage_ticks.
+      Spec §7.7 caps fill price at
+      <code>best_ask + slippage_ticks * tick_size</code>.</li>
+  <li><strong>SettlementSweepLoop</strong> — Polymarket settles on Polygon
+      (~2s blocks). Every fill enters a 2-block "pending_until" window
+      where its capital is locked, reproducing capacity-lock cycles
+      observed in production logs.</li>
+  <li><strong>Kill switches</strong> — flag-rate (anomalous burst →
+      run pause), per-run drawdown limit, daily-loss limit, ingest stall
+      (no trades for 5 min → watchdog alert).</li>
+  <li><strong>Reporter / Telegram bot</strong> — daily summary scheduler
+      (push), inbound bot with <code>/status /runs /run /flags /compare
+      /report</code> commands, watchdog stall alerts.</li>
+  <li><strong>Web dashboard</strong> — read-only 5-panel SPA at port 8765,
+      polls SQLite directly, refreshes every 2s.</li>
+</ul>
+
+<h2>4. Database</h2>
+<p>SQLite single-file (<code>polysim.db</code>). Migrations in
+<code>src/polysim/db/migrations/0001_init.sql</code> through
+<code>0007_empirical_priors.sql</code>. Core tables:</p>
+<ul>
+  <li><code>trades</code> — every fill observed (id, wallet, market, side, outcome, size, price, timestamp).</li>
+  <li><code>markets</code> — Polymarket market metadata + resolution outcome.</li>
+  <li><code>wallets_discovery</code> — cohort registry with classifier scores per niche, frozen per experiment.</li>
+  <li><code>flags</code> — alpha signals (synthetic CohortCopy + legacy detector composites).</li>
+  <li><code>paper_runs</code> · <code>paper_positions</code> · <code>paper_fills</code> — per-run trading state.</li>
+  <li><code>experiments</code> — pre-registered experiment containers with cohort SHA256 hash.</li>
+  <li><code>orderbook_snapshots</code> — captured order-book depth used by the fill model.</li>
+  <li><code>settlement_events</code> — per-fill 2-block settlement window tracking.</li>
+</ul>
+
+<h2>5. Strategy Calibration Notes</h2>
+<p>
+  After the initial 90-day backtest, three calibrations were folded into
+  the default configuration. A replicating dev should ship these as
+  defaults, not as flags to opt into:
+</p>
+<ol>
+  <li><strong>Niche weighting = 1.0</strong> (was 1.5).
+      <code>NICHE_WEIGHT</code> in <code>src/polysim/trading/consensus.py</code>.
+      Per-niche pools (aec, ai_labs, creator_econ) produced no measurable
+      edge in the resolved-market sample; the general "top by skill"
+      pool carried the result.</li>
+  <li><strong>Category filter on politics + sports</strong> in the
+      cohort-copy path. <code>politics</code> and <code>sports</code>
+      were added to both <code>config.yml</code> categories and the
+      <code>Market.category</code> Literal in <code>src/polysim/models.py</code>.
+      A backfill classifier (<code>scripts/classify_markets_backfill.py</code>)
+      retags existing markets.</li>
+  <li><strong>SELL mirror</strong> in <code>CopyOnCohortLoop</code>.
+      Cohort SELLs close any matching open paper position
+      <code>(market, outcome, source_wallet)</code> at the cohort's sell
+      price. Required adding <code>CohortCopy</code> to the
+      <code>allowed_detectors</code> list in <code>profiles/degen.yml</code>
+      and <code>profiles/medium.yml</code>.</li>
+</ol>
+
+<h2>6. Daily Trade Volume</h2>
+<p>
+  Measured during healthy ingest, Polymarket pushes <strong>~19,000
+  trades per day</strong> across all markets. Cohort intersection
+  (typically 200–300 whales) covers roughly 15% of that flow. After the
+  strategy's notional-floor + category filters, that thins to a few
+  hundred actionable signals per day. Capacity-plan around those numbers.
+</p>
+
+<h2>7. Running on a VPS</h2>
+<p>Minimal requirements for a single-operator deployment:</p>
+<ul>
+  <li><strong>OS:</strong> Ubuntu 22+, Debian 12+, or any modern Linux.
+      Repo also runs on Windows 11 (where it was developed).</li>
+  <li><strong>Python:</strong> 3.12 or 3.13 with <code>uv</code> or stdlib venv.</li>
+  <li><strong>Disk:</strong> SQLite DB grows ~150 MB per million trades.
+      Reserve 50 GB for several months of ingest + backfill.</li>
+  <li><strong>RAM:</strong> 2 GB minimum; 4 GB recommended (Polars
+      feature extraction is memory-hungry on cohort-refresh ticks).</li>
+  <li><strong>CPU:</strong> 2 vCPU is fine; the workload is I/O bound.</li>
+  <li><strong>Network:</strong> persistent outbound to
+      <code>clob.polymarket.com</code> (WS),
+      <code>gamma-api.polymarket.com</code> (REST),
+      <code>polygon-mainnet.g.alchemy.com</code> (RPC),
+      and <code>api.anthropic.com</code> if using the Tier-2 LLM
+      investigator.</li>
+</ul>
+
+<h3>7.1 First-time setup</h3>
+<pre>
+# 1. Clone the repo
+git clone &lt;your-fork&gt; polysim && cd polysim
+
+# 2. Python env (uv is fastest)
+uv venv .venv && source .venv/bin/activate
+uv pip install -e ".[dev]"
+
+# 3. Secrets (.env at repo root)
+cat &gt; .env &lt;&lt;'EOF'
+ALCHEMY_API_KEY=your_alchemy_key
+ANTHROPIC_API_KEY=your_anthropic_key          # optional, only if using LLM investigator
+TELEGRAM_BOT_TOKEN=your_bot_token             # optional
+TELEGRAM_CHAT_ID=your_chat_id                 # optional
+EOF
+
+# 4. Initial DB + schema
+python -m polysim.cli init
+
+# 5. Build the cohort (one-time, ~30 min wall clock)
+python -m polysim.cli ingest backfill --days 90 --max-markets 2000
+python -m polysim.cli ingest backfill-closed --max-markets 10000
+python -m polysim.cli discovery run --experiment-id experiment_001
+
+# 6. Sanity check
+python -m polysim.cli doctor
+</pre>
+
+<h3>7.2 Running under systemd</h3>
+<p>Create <code>/etc/systemd/system/polysim.service</code>:</p>
+<pre>
+[Unit]
+Description=PolySim live paper-trading orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=polysim
+WorkingDirectory=/home/polysim/polysim
+EnvironmentFile=/home/polysim/polysim/.env
+ExecStart=/home/polysim/polysim/.venv/bin/python -m polysim.cli live \
+    --profiles systematic,degen \
+    --tag experiment_001
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/polysim/polysim/logs/live.log
+StandardError=append:/home/polysim/polysim/logs/live.err.log
+
+[Install]
+WantedBy=multi-user.target
+</pre>
+<p>Web dashboard as a second service:</p>
+<pre>
+[Service]
+ExecStart=/home/polysim/polysim/.venv/bin/python -m polysim.cli web \
+    --host 0.0.0.0 --port 8765
+Restart=on-failure
+</pre>
+<p>Enable and start:</p>
+<pre>
+sudo systemctl daemon-reload
+sudo systemctl enable --now polysim.service polysim-web.service
+sudo systemctl status polysim          # check health
+journalctl -u polysim -f               # tail logs
+</pre>
+
+<h3>7.3 Reverse proxy</h3>
+<p>
+  The web dashboard binds to <code>0.0.0.0:8765</code> with no auth. Don't
+  expose that directly. Front it with Caddy or nginx with basic-auth:
+</p>
+<pre>
+# Caddyfile
+polysim.your-domain.com {
+    basicauth {
+        you JDJhJDE0JG... # caddy hash-password
+    }
+    reverse_proxy 127.0.0.1:8765
+}
+</pre>
+
+<h2>8. Tracking Surfaces</h2>
+
+<h3>8.1 Web dashboard (port 8765)</h3>
+<p>Five panels, refreshes every 2s:</p>
+<ol>
+  <li><strong>Ingest stream</strong> — most-recent trades + flags interleaved.</li>
+  <li><strong>TUI mirror</strong> — flags, open positions, P&amp;L by category, kill-switch state.</li>
+  <li><strong>Flag detail</strong> — composite components, investigator verdict if any.</li>
+  <li><strong>Telegram timeline</strong> — last outbound + inbound bot messages.</li>
+  <li><strong>Runs list</strong> — every paper run with profile, paused state, P&amp;L.</li>
+</ol>
+
+<h3>8.2 Telegram bot</h3>
+<p>Inbound (DM the bot):</p>
+<ul>
+  <li><code>/status</code>, <code>/runs</code>, <code>/run &lt;id&gt;</code>,
+      <code>/flags</code>, <code>/compare</code>, <code>/report</code></li>
+</ul>
+<p>Outbound (push):</p>
+<ul>
+  <li>Daily summary at the configured hour</li>
+  <li>Watchdog ingest-stall alerts</li>
+  <li>Kill-switch trip notifications</li>
+</ul>
+
+<h3>8.3 CLI</h3>
+<pre>
+python -m polysim.cli dashboard            # rich TUI
+python -m polysim.cli run status &lt;id&gt;      # one run, detailed
+python -m polysim.cli run list             # all runs
+python -m polysim.cli flags list --since 1h
+python -m polysim.cli experiment report    # full Markdown experiment report
+python -m polysim.cli doctor               # health checks
+</pre>
+
+<h2>9. Repository Layout</h2>
+<pre>
+polysim/
+├── pyproject.toml                          # uv / pip install -e ".[dev]"
+├── config.yml                              # categories, scoring, bankroll
+├── config.example.yml                      # safe template to copy
+├── polysim-spec.md                         # base spec (Phase 0–6)
+├── polysim-spec-addendum-dual-mode.md      # risk-profile architecture
+├── polysim-spec-addendum-02-empirical-priors.md  # current addendum
+├── docs/
+│   ├── runbook.md                          # daily operator checklist
+│   └── detectors.md                        # legacy detector reference
+├── src/polysim/
+│   ├── cli.py                              # typer entry point
+│   ├── live.py                             # orchestrator (this is the heart)
+│   ├── config.py                           # pydantic settings
+│   ├── models.py                           # Trade, Market, Flag, etc.
+│   ├── ingest/                             # WS + REST + parser
+│   ├── discovery/                          # features, classifier, cohort
+│   ├── trading/                            # consensus, decision_gate, arb_detector
+│   ├── scoring/                            # legacy detectors
+│   ├── paper/                              # executor, fill_model, portfolio
+│   ├── investigator/                       # Tier-2 LLM path
+│   ├── agents/                             # Belief schema + planner
+│   ├── reporter/                           # markdown, telegram, scheduler
+│   ├── evaluator/                          # backtest, metrics, calibration
+│   ├── experiment/                         # hypothesis tests + reporting
+│   ├── web/                                # 5-panel dashboard
+│   ├── db/migrations/                      # numbered SQL files
+│   └── utils/                              # time, watchdog
+├── scripts/                                # one-off backfill / diagnostic / replay
+└── tests/
+    ├── unit/                               # ~500 tests
+    ├── golden/                             # §9.2 scenario tests
+    └── fidelity/                           # §9.4 replay determinism
+</pre>
+
+<h2>10. References &amp; Sources</h2>
+<p>The empirical-priors addendum cites seven sources, each contributing
+specific architectural decisions:</p>
+<table>
+  <thead><tr><th>Source</th><th>Architectural contribution</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://arxiv.org/abs/2604.07355">Arcada Prediction Arena (arXiv:2604.07355)</a></td><td>Empirical priors on LLM trading limits; bid-price MTM (vs mid); success-factor hierarchy.</td></tr>
+    <tr><td><a href="https://arxiv.org/abs/2508.03474">Polymarket arbitrage paper (arXiv:2508.03474)</a></td><td>YES+NO mispricing detection; what to deliberately skip (we cannot win the ms-latency race).</td></tr>
+    <tr><td>Claude Opus 4.6 Kalshi live log (Prediction Arena dashboard)</td><td>Structured-belief agent pattern; per-cycle plan schema; capacity-lock cycle reproduction.</td></tr>
+    <tr><td>Lunar's 4-repo build</td><td>Tooling scaffold; consensus weighting pattern; 4-trigger exit taxonomy.</td></tr>
+    <tr><td>Kaustubh's BTC engine</td><td>Lifecycle-per-market architecture; simulation fidelity requirements.</td></tr>
+    <tr><td>Karpathy on agent-native tooling</td><td>Treat polymarket-cli as a sanctioned tool for ad-hoc agent use.</td></tr>
+    <tr><td><a href="https://github.com/warproxxx/poly_data">warproxxx/poly_data</a></td><td>Historical Polymarket trade dump for cohort bootstrap.</td></tr>
+  </tbody>
+</table>
+
+<h3>Polymarket data endpoints</h3>
+<ul>
+  <li><strong>WebSocket:</strong> <code>wss://ws-subscriptions-clob.polymarket.com/ws/market</code></li>
+  <li><strong>Gamma REST:</strong> <a href="https://gamma-api.polymarket.com">https://gamma-api.polymarket.com</a></li>
+  <li><strong>Data API (trades):</strong> <a href="https://data-api.polymarket.com">https://data-api.polymarket.com</a> — note: caps pagination depth at offset ≈ 3500 with HTTP 400; treat as EOF.</li>
+  <li><strong>Alchemy CTF logs:</strong> <a href="https://polygon-mainnet.g.alchemy.com">https://polygon-mainnet.g.alchemy.com</a> via your Alchemy app.</li>
+</ul>
+
+<h3>Anthropic API (Tier-2 LLM investigator)</h3>
+<ul>
+  <li><a href="https://docs.anthropic.com">https://docs.anthropic.com</a></li>
+  <li>Triage model: <code>claude-haiku-4-5</code></li>
+  <li>Deep-dive model: <code>claude-opus-4-7</code></li>
+  <li>Use prompt caching: split system + wallet-history blocks with
+      <code>cache_control</code> per spec §3.2.</li>
+</ul>
+
+<h3>Spec documents in the repo</h3>
+<ul>
+  <li><code>polysim-spec.md</code> — base spec (Phase 0–6, build plan)</li>
+  <li><code>polysim-spec-addendum-dual-mode.md</code> — risk-profile architecture</li>
+  <li><code>polysim-spec-addendum-02-empirical-priors.md</code> — discovery pipeline + experiment harness + cited sources</li>
+  <li><code>docs/runbook.md</code> — operator-side daily checklist</li>
+  <li><code>docs/detectors.md</code> — legacy detector reference</li>
+</ul>
+
+<h2>11. Build-Quality Gates (CI)</h2>
+<p>Pre-merge gates that already pass green on the current tree:</p>
+<ul>
+  <li><code>ruff check .</code> — lint clean</li>
+  <li><code>mypy src</code> — strict type-check, 0 issues across the source tree</li>
+  <li><code>pytest tests/unit tests/golden tests/fidelity</code> — ~500 tests</li>
+  <li><code>python scripts/ci_safety.py</code> — refuses to ship if any
+      code path imports a live order-placement API or references the
+      forbidden <code>mid_price</code> identifier (spec §5.3.1 bid-price
+      MTM invariant).</li>
+</ul>
+
+<h2>12. Known Operational Caveats</h2>
+<ol>
+  <li><strong>Resolution lag:</strong> Polymarket markets typically take
+      weeks-to-months to resolve. Most positions are MTM-only at any
+      given snapshot — plan reporting accordingly.</li>
+  <li><strong>WS reconnection is opportunistic.</strong> If the WS drops
+      silently the orchestrator needs a restart. systemd
+      <code>Restart=on-failure</code> handles process crashes but not
+      every silent stall — pair it with the
+      <code>UptimeWatchdog</code> (ingest stall → Telegram alert).</li>
+  <li><strong>Data-API pagination cap:</strong> the public trades
+      endpoint returns HTTP 400 past offset ≈ 3500. The
+      <code>PolymarketREST.get_trades</code> wrapper treats that as EOF.
+      Document this if you rewrite the client.</li>
+  <li><strong>Live trading is architecturally prohibited.</strong> The
+      CI grep is not optional; it's the operator's protection against
+      accidentally shipping a live order path.</li>
+  <li><strong>Cohort drift:</strong> if you stop running
+      <code>DiscoveryRefreshLoop</code>, the cohort decays. The
+      experiment harness assumes a refresh interval no longer than 24h.</li>
+</ol>
+
+<hr>
+<p class="meta">
+  Self-contained replication brief. Strategy-performance numbers,
+  balances, and P&amp;L are intentionally omitted — they belong in the
+  operational reporting tooling, not the build doc.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PolySim — Live Dashboard</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d;
+    --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff;
+    --green:#3fb950; --red:#f85149; --yellow:#d29922; --purple:#bc8cff;
+    --term:#010409; --term-text:#e6edf3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.5}
+  header{padding:1.6rem 2.5rem 1rem;border-bottom:1px solid var(--border)}
+  header h1{font-size:1.7rem;margin:0 0 .25rem;letter-spacing:-.02em}
+  header h1 .tag{font-size:.55em;color:var(--purple);font-weight:500;
+    letter-spacing:.05em;padding:.1em .5em;border:1px solid var(--purple);
+    border-radius:3px;margin-left:.5em;vertical-align:middle}
+  header .sub{color:var(--muted);margin:0;font-size:.85rem}
+  .banner{display:inline-block;background:rgba(248,81,73,.08);
+    border:1px solid rgba(248,81,73,.35);color:var(--red);
+    padding:.25rem .8rem;border-radius:4px;font-size:.78rem;
+    margin-top:.6rem;font-weight:500}
+  .top-stats{display:flex;gap:1.5rem;margin-top:.8rem;font-size:.78rem;
+    color:var(--muted);flex-wrap:wrap}
+  .top-stats .stat strong{color:var(--text);font-variant-numeric:tabular-nums}
+  main{padding:1rem 2rem 2rem;display:grid;
+    grid-template-columns:1fr 1fr;gap:1rem}
+  main .full{grid-column:1/-1}
+  .panel{background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+  .panel-header{display:flex;align-items:center;gap:.6rem;
+    padding:.5rem .9rem;background:#0d1117;border-bottom:1px solid var(--border)}
+  .dots{display:flex;gap:.3rem}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.r{background:#ff5f56}.dot.y{background:#ffbd2e}.dot.g{background:#27c93f}
+  .panel-title{font-family:'SF Mono',Consolas,Monaco,monospace;
+    font-size:.74rem;color:var(--muted)}
+  .live{margin-left:auto;display:flex;align-items:center;gap:.3rem;
+    font-size:.7rem;color:var(--green);font-weight:600;letter-spacing:.05em}
+  .live::before{content:"";width:7px;height:7px;border-radius:50%;
+    background:var(--green);animation:blink 1.3s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+  .term,.tui{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:.72rem;
+    background:var(--term);color:var(--term-text);padding:.85rem;
+    line-height:1.45;min-height:520px;max-height:520px;
+    overflow:auto;white-space:pre}
+  .tui{font-size:.68rem;line-height:1.3}
+  .term .ok{color:var(--green)}
+  .term .t{color:var(--muted)}
+  .term .mk{color:var(--accent)}
+  .term .buy{color:var(--green)}
+  .term .sell{color:var(--red)}
+  .term .flag{color:var(--yellow)}
+  .term .arr{color:var(--yellow)}
+  .term .new{color:var(--purple)}
+  .term .hl{color:var(--red);font-weight:600}
+  .term .com{color:var(--muted)}
+  .tui .ok{color:var(--green)}
+  .tui .warn{color:var(--yellow)}
+  .tui .bad{color:var(--red)}
+  .tui .inf{color:var(--accent)}
+  .tui .head{color:var(--purple);font-weight:700}
+  .fd{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:.72rem;
+    background:var(--term);color:var(--term-text);padding:.9rem 1rem;
+    line-height:1.45;min-height:560px;max-height:560px;overflow:auto;
+    white-space:pre-wrap}
+  .fd .lbl{color:var(--muted)}
+  .fd .red{color:var(--red)}
+  .fd .grn{color:var(--green)}
+  .fd .acc{color:var(--accent)}
+  .fd .yl{color:var(--yellow)}
+  .fd .h{color:var(--purple);font-weight:700}
+  .tg{background:#0e1621;min-height:560px;max-height:560px;overflow-y:auto;
+    padding:.8rem;display:flex;flex-direction:column;gap:.7rem}
+  .tgh{background:#17212b;padding:.55rem .75rem;border-radius:6px;
+    display:flex;align-items:center;gap:.6rem;position:sticky;top:-.8rem;
+    z-index:1;margin:-.8rem -.8rem 0}
+  .tgh .av{width:34px;height:34px;border-radius:50%;
+    background:linear-gradient(135deg,#58a6ff,#bc8cff);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;color:#fff;font-size:.78rem}
+  .tgh .nm{font-weight:600;color:#e6edf3;font-size:.85rem}
+  .tgh .st{font-size:.7rem;color:#7d8b97}
+  .msg{background:#182533;border-radius:10px 10px 10px 3px;
+    padding:.6rem .8rem;max-width:92%;align-self:flex-start;
+    font-size:.78rem;line-height:1.5;border-left:3px solid var(--accent)}
+  .msg.flag{border-left-color:var(--yellow)}
+  .msg.position_opened{border-left-color:var(--green)}
+  .msg.position_closed{border-left-color:var(--red)}
+  .msg .ti{font-weight:600;color:#e6edf3;margin-bottom:.25rem}
+  .msg .tm{font-size:.65rem;color:#7d8b97;text-align:right;margin-top:.3rem}
+  .msg .ln{font-size:.74rem}
+  .runs{padding:.8rem;display:flex;flex-direction:column;gap:.5rem}
+  .run-row{display:grid;grid-template-columns:auto 1fr auto auto auto;
+    gap:.7rem;align-items:center;padding:.45rem .7rem;
+    background:#0d1117;border:1px solid var(--border);border-radius:6px;
+    font-size:.78rem;cursor:pointer}
+  .run-row:hover{border-color:var(--accent)}
+  .run-row.selected{border-color:var(--accent);background:#1c2230}
+  .run-row .id{color:var(--muted);font-family:monospace}
+  .run-row .name{font-weight:600}
+  .run-row .profile{color:var(--purple);font-size:.72rem;
+    font-family:monospace;padding:.1rem .4rem;border:1px solid var(--purple);
+    border-radius:3px}
+  .run-row .pos{color:var(--green);font-variant-numeric:tabular-nums}
+  .run-row .neg{color:var(--red);font-variant-numeric:tabular-nums}
+  .run-row .paused{color:var(--red);font-weight:600;font-size:.7rem}
+  .risk-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:1px;
+    background:var(--border)}
+  .risk-col{background:var(--term);padding:.75rem;min-width:0}
+  .risk-summary{display:flex;gap:1rem;color:var(--muted);font-size:.72rem;
+    margin-bottom:.6rem;font-family:'SF Mono',Consolas,monospace}
+  .risk-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    gap:.65rem;align-items:start;padding:.45rem 0;border-top:1px solid #21262d;
+    font-family:'SF Mono',Consolas,monospace;font-size:.7rem}
+  .risk-row:first-of-type{border-top:0}
+  .risk-row .pass{color:var(--green);font-weight:700}
+  .risk-row .block{color:var(--red);font-weight:700}
+  .risk-row .mixed{color:var(--yellow)}
+  .risk-row .q{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .risk-row .why{color:var(--muted);font-size:.66rem}
+  footer{padding:1rem 2rem;border-top:1px solid var(--border);
+    color:var(--muted);font-size:.74rem;display:flex;
+    justify-content:space-between;gap:1rem;flex-wrap:wrap}
+  footer .legend{display:flex;gap:1rem}
+  footer .legend span::before{content:"■ ";margin-right:.1em}
+  footer .legend .a{color:var(--accent)}
+  footer .legend .g{color:var(--green)}
+  footer .legend .y{color:var(--yellow)}
+  footer .legend .r{color:var(--red)}
+  footer .legend .p{color:var(--purple)}
+  /* ── tabs ── */
+  .tabs{display:flex;gap:.4rem;padding:.6rem 2rem 0;border-bottom:1px solid var(--border);
+    background:var(--bg);position:sticky;top:0;z-index:5;overflow-x:auto;
+    -webkit-overflow-scrolling:touch}
+  .tab-btn{appearance:none;background:transparent;border:none;color:var(--muted);
+    font-family:inherit;font-size:.9rem;font-weight:600;padding:.6rem 1rem;
+    border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  body[data-tab="poly"] .view-equity{display:none}
+  body[data-tab="equity"] .view-poly{display:none}
+  body[data-tab="equity"] main{grid-template-columns:1fr}
+  @media (max-width:1100px){
+    main{grid-template-columns:1fr}
+    header,main,footer,.tabs{padding-left:1rem;padding-right:1rem}
+  }
+  /* ── mobile ── */
+  @media (max-width:680px){
+    header{padding:1rem 1rem .6rem}
+    header h1{font-size:1.3rem}
+    header .sub{font-size:.78rem}
+    main{padding:.6rem 1rem 1.5rem;gap:.7rem}
+    .top-stats{gap:.9rem;font-size:.72rem}
+    .tab-btn{font-size:.82rem;padding:.55rem .8rem}
+    .term,.tui,.fd,.tg{min-height:300px;max-height:62vh;font-size:.66rem;
+      -webkit-overflow-scrolling:touch}
+    .tui{font-size:.6rem}
+    .panel-title{font-size:.66rem}
+    .run-row{grid-template-columns:auto 1fr auto;gap:.4rem;font-size:.72rem}
+    .run-row .profile,.run-row span:nth-child(5){display:none}
+    .risk-grid{grid-template-columns:1fr}
+    footer{padding:1rem;font-size:.68rem}
+  }
+</style>
+</head>
+<body data-tab="poly">
+
+<header>
+  <h1>PolySim <span class="tag">LIVE</span></h1>
+  <p class="sub">Prediction-market insider detection &amp; paper copy-trading
+    simulator — companion to terminal + Telegram</p>
+  <span class="banner">PAPER ONLY — no real trades, ever (spec §16)</span>
+  <div class="top-stats" id="top-stats">
+    <div class="stat"><strong id="s-trades">…</strong> trades</div>
+    <div class="stat"><strong id="s-flags">…</strong> flags</div>
+    <div class="stat"><strong id="s-runs">…</strong> tournament lanes</div>
+    <div class="stat"><strong id="s-flags-1h">…</strong> flags last 1h</div>
+    <div class="stat"><strong id="s-trades-1h">…</strong> trades last 1h</div>
+    <div class="stat"><strong id="s-llm">…</strong> LLM calls today</div>
+    <div class="stat"><strong id="s-now">…</strong> last refresh</div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="poly">Polymarket</button>
+  <button class="tab-btn" data-tab="equity">Equities</button>
+</nav>
+
+<main>
+
+  <!-- 1. INGEST STREAM -->
+  <section class="panel view-poly">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">polysim — recent trades + flags</span>
+      <span class="live">LIVE</span>
+    </div>
+    <pre class="term" id="ingest-stream">loading…</pre>
+  </section>
+
+  <!-- 2. TUI MIRROR -->
+  <section class="panel view-poly">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">polysim dashboard — TUI mirror</span>
+      <span class="live">LIVE</span>
+    </div>
+    <pre class="tui" id="tui-mirror">loading…</pre>
+  </section>
+
+  <!-- 3. FLAG DETAIL -->
+  <section class="panel view-poly">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">polysim flags show — newest flag (or click a flag in panel 1)</span>
+    </div>
+    <pre class="fd" id="flag-detail">no flags yet</pre>
+  </section>
+
+  <!-- 4. TELEGRAM TIMELINE -->
+  <section class="panel view-poly">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">Telegram — @PolySimBot</span>
+    </div>
+    <div class="tg" id="telegram-timeline">
+      <div class="tgh">
+        <div class="av">PS</div>
+        <div>
+          <div class="nm">PolySim Bot</div>
+          <div class="st" id="tg-status">read-only · 7 commands · live</div>
+        </div>
+      </div>
+      <div id="tg-msgs"></div>
+    </div>
+  </section>
+
+  <!-- 5. RUNS LIST -->
+  <section class="panel full view-poly">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">polysim run list — click to pin a run</span>
+    </div>
+    <div class="runs" id="runs-list">loading…</div>
+  </section>
+
+  <!-- 6. RISK INTELLIGENCE -->
+  <section class="panel full view-poly">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">risk intelligence - evidence / correlation / executable edge</span>
+    </div>
+    <div class="risk-grid" id="risk-intelligence">loading...</div>
+  </section>
+
+  <!-- 7. EQUITY SENTIMENT TRACK -->
+  <section class="panel full view-equity">
+    <div class="panel-header">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <span class="panel-title">equity sentiment track — AI / semis / robotics ($10k variants)</span>
+    </div>
+    <pre id="equity-stream" class="stream">loading…</pre>
+  </section>
+
+</main>
+
+<footer>
+  <div>Read-only · refreshes every 2s · UI overrides spec §2 per operator request · paper-only invariant intact</div>
+  <div class="legend">
+    <span class="a">CLI</span>
+    <span class="p">TUI</span>
+    <span class="y">Flag</span>
+    <span class="g">Profit</span>
+    <span class="r">Loss / alert</span>
+  </div>
+</footer>
+
+<script>
+const REFRESH_MS = 2000;
+let selectedRun = null;
+let selectedFlag = null;
+
+function fmt$(cents) {
+  const v = (Number(cents) || 0) / 100;
+  const sign = v > 0 ? "+" : v < 0 ? "" : "";
+  return sign + "$" + v.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function fmtPct(p) {
+  const v = (Number(p) || 0) * 100;
+  const sign = v > 0 ? "+" : "";
+  return sign + v.toFixed(1) + "%";
+}
+function shortAddr(a) {
+  if (!a) return "-";
+  return a.length > 14 ? a.slice(0,10) + "..." + a.slice(-4) : a;
+}
+function shortQ(q, n=44) {
+  if (!q) return "(unknown)";
+  return q.length > n ? q.slice(0, n-3) + "..." : q;
+}
+
+function renderIngest(state) {
+  const lines = [];
+  lines.push(`<span class="com">$ polysim live  --  ${state.now_utc}</span>`);
+  lines.push(`<span class="com">${state.stats.trades} trades · ${state.stats.markets} markets · `
+    + `${state.stats.wallets} wallets · ${state.stats.flags} flags</span>`);
+  lines.push("");
+  // Interleave most-recent trades + flags by timestamp.
+  const events = [];
+  for (const t of (state.trades || [])) {
+    events.push({ts: t.timestamp, kind: "trade", data: t});
+  }
+  for (const f of (state.flags || [])) {
+    events.push({ts: f.created_at, kind: "flag", data: f});
+  }
+  events.sort((a, b) => (b.ts || "").localeCompare(a.ts || ""));
+  for (const e of events.slice(0, 22)) {
+    const ts = (e.ts || "").slice(11, 19);
+    if (e.kind === "trade") {
+      const t = e.data;
+      const sideCls = t.side === "BUY" ? "buy" : "sell";
+      lines.push(
+        `<span class="t">[${ts}]</span> TRADE  `
+        + `<span class="mk">${shortAddr(t.wallet_address)}</span>  `
+        + `<span class="${sideCls}">${t.side === "BUY" ? "BUY " : "SELL"} `
+        + `${t.outcome}@${t.price_cents}¢</span>  `
+        + `$${(t.notional_cents/100).toFixed(0).padStart(6, " ")}  `
+        + `<span class="com">${shortQ(t.market_question, 36)}</span>`
+      );
+    } else {
+      const f = e.data;
+      const verdict = (f.investigator_verdict || "").trim();
+      const score = Number(f.composite_score || 0).toFixed(1);
+      lines.push(
+        `<span class="t">[${ts}]</span> <span class="flag">FLAG   #${f.id}  composite ${score}</span>  `
+        + (verdict ? `<span class="flag">${verdict}</span>` : `<span class="com">unchecked</span>`)
+        + (f.acted_on ? `  <span class="ok">→ acted</span>` : "")
+      );
+      lines.push(`              <span class="com">${shortQ(f.question || f.market_id, 60)}</span>`);
+    }
+  }
+  document.getElementById("ingest-stream").innerHTML = lines.join("\n");
+}
+
+function renderTui(state) {
+  // Re-render the rich TUI as ASCII so the same shape shows up here.
+  const out = [];
+  const sel = state.selected_run;
+  const dd = (state.drawdown_pct * 100).toFixed(1);
+  const ddLim = (state.drawdown_limit_pct * 100).toFixed(0);
+  const flags1h = state.flags_last_hour;
+  const flagsLim = state.max_flags_per_hour;
+  out.push(`<span class="head">┌─ PolySim Dashboard ─────────── ${state.now_utc.slice(0,19).replace("T", " ")} UTC ─┐</span>`);
+  out.push(`│                                                                       │`);
+  out.push(`│ ┌─ LIVE FLAGS ──────────────────────┐ ┌─ OPEN POSITIONS ────────────┐ │`);
+  for (let i = 0; i < 8; i++) {
+    const f = (state.flags || [])[i];
+    const p = (state.open_positions || [])[i];
+    let leftL = "";
+    let rightL = "";
+    if (f) {
+      const ts = (f.created_at || "").slice(11, 16);
+      const cat = (f.category || "-").toUpperCase().slice(0, 7).padEnd(7);
+      const verdict = ((f.investigator_verdict || "").toUpperCase() + "        ").slice(0, 8);
+      const score = Number(f.composite_score || 0).toFixed(1);
+      leftL = `${ts}  #${String(f.id).padEnd(5)} ${cat} <span class="inf">${verdict}</span> ${score.padStart(4)}`;
+    } else {
+      leftL = "(none)";
+    }
+    if (p) {
+      const q = shortQ(p.market_question || p.market_id, 18).padEnd(18);
+      const sz = String(p.size_shares).padStart(4);
+      const out_ = (p.outcome || "").padEnd(3);
+      const mark = p.mark_price_cents === null || p.mark_price_cents === undefined
+        ? "?" : `${p.mark_price_cents}c`;
+      const src = (p.mark_source || "-").slice(0, 5);
+      const up = p.unrealized_pnl_cents === null || p.unrealized_pnl_cents === undefined
+        ? "" : ` ${fmt$(p.unrealized_pnl_cents)}`;
+      rightL = `${q} ${out_} ${sz} @ ${p.avg_entry_price_cents}c -> ${mark} ${src}${up}`;
+    }
+    out.push(`│ │ ${leftL.padEnd(34)}│ │ ${rightL.padEnd(28)}│ │`);
+  }
+  out.push(`│ └───────────────────────────────────┘ └─────────────────────────────┘ │`);
+  out.push(`│ ┌─ P&L BY CATEGORY (closed) ────────┐ ┌─ KILL SWITCHES ─────────────┐ │`);
+  const cats = Object.entries(state.pnl_by_category || {}).sort((a,b) => b[1] - a[1]).slice(0, 6);
+  const mtm = (sel && sel.mark_to_market) || {};
+  const cash = sel && sel.cash_balance_cents !== null && sel.cash_balance_cents !== undefined
+    ? fmt$(sel.cash_balance_cents) : "n/a";
+  const switches = [
+    `Account: ${sel ? fmt$(sel.account_value_cents) : "-"}`,
+    `Cash:    ${cash}`,
+    `Open:    ${sel ? fmt$(sel.open_position_value_cents) : "-"}`,
+    `Drawdn:  ${dd}% / ${ddLim}%`,
+    `Marks:   bid ${mtm.bid_marked_positions || 0} fb ${mtm.entry_fallback_positions || 0}`,
+    `Trades:  ${state.trades_last_1h}/h`,
+  ];
+  for (let i = 0; i < 6; i++) {
+    const c = cats[i];
+    const left = c
+      ? `${c[0].padEnd(15)} <span class="${c[1] >= 0 ? 'ok' : 'bad'}">${(c[1]/100).toFixed(2).padStart(8)}</span>`
+      : "";
+    out.push(`│ │ ${left.padEnd(45)}│ │ ${switches[i].padEnd(28)}│ │`);
+  }
+  out.push(`│ └───────────────────────────────────┘ └─────────────────────────────┘ │`);
+  if (sel) {
+    const pnlSign = sel.pnl_pct >= 0 ? "+" : "";
+    const cashLine = sel.cash_balance_cents !== null && sel.cash_balance_cents !== undefined
+      ? ` cash $${(sel.cash_balance_cents/100).toFixed(2)}` : "";
+    out.push(`│ run #${sel.id} (${sel.profile_name || '?'}): account $${(sel.account_value_cents/100).toFixed(2)}`
+      + `${cashLine} (${pnlSign}${(sel.pnl_pct*100).toFixed(2)}%)  ${sel.paused_at ? '<span class="bad">PAUSED</span>' : ''}`);
+  }
+  out.push(`<span class="head">└───────────────────────────────────────────────────────────────────────┘</span>`);
+  document.getElementById("tui-mirror").innerHTML = out.join("\n");
+}
+
+function renderFlagDetail(state) {
+  const f = state.selected_flag;
+  if (!f) {
+    document.getElementById("flag-detail").innerHTML = "<span class='lbl'>no flag selected</span>";
+    return;
+  }
+  const w = f.wallet || {};
+  const lines = [];
+  lines.push(`<span class="h">Flag #${f.id}</span>  <span class="lbl">—</span> ${f.created_at || ""}`);
+  lines.push(`<span class="lbl">═══════════════════════════════════════════════════</span>`);
+  lines.push("");
+  lines.push(`<span class="lbl">Wallet:</span>    <span class="acc">${f.wallet_address}</span>`);
+  if (w.first_seen_at) lines.push(`           <span class="lbl">First seen:</span> ${w.first_seen_at}`);
+  if (w.funding_source) lines.push(`           <span class="lbl">Funding:</span>    ${w.funding_source}`);
+  if (w.nonce !== null && w.nonce !== undefined) lines.push(`           <span class="lbl">Nonce:</span>      ${w.nonce}`);
+  lines.push(`           <span class="lbl">Lifetime:</span>   $${(w.lifetime_volume_cents/100).toLocaleString()} across ${w.lifetime_trades} trades`);
+  lines.push("");
+  lines.push(`<span class="lbl">Market:</span>    ${f.market_question || f.market_id}`);
+  lines.push(`           <span class="lbl">Category:</span>   ${f.category || "-"}`);
+  if (f.daily_volume_usd_cents) {
+    lines.push(`           <span class="lbl">24h volume:</span> $${(f.daily_volume_usd_cents/100).toLocaleString()}`);
+  }
+  lines.push("");
+  lines.push(`<span class="h">Composite score: ${Number(f.composite_score || 0).toFixed(2)} / 10</span>`);
+  // Per-detector breakdown
+  const per = (f.components && f.components.per_detector) || {};
+  const weights = (f.components && f.components.weights) || {};
+  for (const [name, d] of Object.entries(per)) {
+    const raw = Number((d || {}).raw_score || 0);
+    const w_ = Number(weights[name] || 0);
+    lines.push(`  ${name.padEnd(28)} <span class="yl">${raw.toFixed(2)} × ${w_.toFixed(1)}</span>`);
+  }
+  if (f.components && f.components.contributing_detectors) {
+    lines.push(`           <span class="lbl">contributing:</span> ${f.components.contributing_detectors.join(", ")}`);
+  }
+  lines.push("");
+  if (f.investigator_verdict) {
+    lines.push(`<span class="h">Investigator verdict:</span> <span class="acc">${f.investigator_verdict}</span>`);
+    if (f.investigator_reasoning) {
+      lines.push("");
+      lines.push(`  <span class="lbl">REASONING</span>`);
+      lines.push(`  ${f.investigator_reasoning}`);
+    }
+  } else {
+    lines.push(`<span class="lbl">Investigator: not run</span>`);
+  }
+  lines.push("");
+  lines.push(`<span class="lbl">Acted on:</span>  ${f.acted_on ? '<span class="grn">YES</span>' : '<span class="red">no</span>'}`);
+  document.getElementById("flag-detail").innerHTML = lines.join("\n");
+}
+
+function renderTelegram(state) {
+  const msgs = state.telegram || [];
+  const out = [];
+  for (const m of msgs) {
+    const ts = (m.ts || "").slice(11, 16);
+    out.push(
+      `<div class="msg ${m.kind || ""}">`
+      + `<div class="ti">${m.title || ""}</div>`
+      + (m.lines || []).map(l => `<div class="ln">${l}</div>`).join("")
+      + `<div class="tm">${ts}</div>`
+      + `</div>`
+    );
+  }
+  document.getElementById("tg-msgs").innerHTML = out.join("");
+  document.getElementById("tg-status").textContent =
+    `read-only · 7 commands · ${msgs.length} recent msgs`;
+}
+
+function renderRuns(state) {
+  const rows = state.runs || [];
+  const out = rows.map(r => {
+    const cls = r.id === selectedRun ? "selected" : "";
+    const pnlCls = r.pnl_cents >= 0 ? "pos" : "neg";
+    const status = r.ended_at ? "ended" : (r.paused_at ? `<span class="paused">PAUSED</span>` : "active");
+    return `<div class="run-row ${cls}" data-id="${r.id}">`
+      + `<span class="id">#${r.id}</span>`
+      + `<span class="name">${r.name || "-"}</span>`
+      + `<span class="profile">${r.profile_name || "-"}</span>`
+      + `<span class="${pnlCls}">${fmt$(r.pnl_cents)} (${fmtPct(r.pnl_pct)})</span>`
+      + `<span>${status}</span>`
+      + `</div>`;
+  });
+  const el = document.getElementById("runs-list");
+  el.innerHTML = out.join("") || "<span style='color:var(--muted)'>(no runs)</span>";
+  for (const child of el.querySelectorAll(".run-row")) {
+    child.addEventListener("click", () => {
+      selectedRun = Number(child.getAttribute("data-id"));
+      tick();  // immediate refresh
+    });
+  }
+}
+
+function renderRisk(state) {
+  const risk = state.risk_intelligence || {};
+  const counts = risk.counts_24h || {passed: 0, blocked: 0};
+  const decisions = (risk.decisions || []).slice(0, 8);
+  const assessments = (risk.assessments || []).slice(0, 6);
+  const decisionRows = decisions.map(d => {
+    const passed = Number(d.passed) === 1;
+    const edge = d.edge_after_cost_cents == null
+      ? "edge n/a" : `edge ${Number(d.edge_after_cost_cents).toFixed(1)}c`;
+    return `<div class="risk-row">`
+      + `<span class="${passed ? "pass" : "block"}">${passed ? "PASS" : "BLOCK"}</span>`
+      + `<span><div class="q">${shortQ(d.question, 72)}</div>`
+      + `<div class="why">${d.gate_name}: ${d.reason}</div></span>`
+      + `<span>${edge}</span></div>`;
+  }).join("") || `<div class="risk-row"><span class="mixed">IDLE</span><span>No candidates evaluated yet</span><span></span></div>`;
+  const assessmentRows = assessments.map(a => {
+    const good = a.status === "corroborated";
+    const cls = good ? "pass" : (a.status === "rumor_heavy" ? "block" : "mixed");
+    return `<div class="risk-row">`
+      + `<span class="${cls}">${String(a.status || "-").toUpperCase()}</span>`
+      + `<span><div class="q">${a.subject_key || shortQ(a.question, 40)}</div>`
+      + `<div class="why">${a.relevant_source_count || 0}/${a.source_count || 0} relevant - quality ${Number(a.source_quality_score || 0).toFixed(2)} - rumor ${Number(a.rumor_risk_score || 0).toFixed(2)}</div></span>`
+      + `<span>${a.assessment_kind || "scan"}</span></div>`;
+  }).join("") || `<div class="risk-row"><span class="mixed">NONE</span><span>No evidence scans yet</span><span></span></div>`;
+  document.getElementById("risk-intelligence").innerHTML =
+    `<div class="risk-col"><div class="risk-summary"><span>${counts.blocked || 0} blocked / 24h</span><span>${counts.passed || 0} passed / 24h</span></div>${decisionRows}</div>`
+    + `<div class="risk-col"><div class="risk-summary"><span>latest evidence</span></div>${assessmentRows}</div>`;
+}
+
+function renderEquity(state) {
+  const eq = state.equity || {runs: [], signals: [], positions: []};
+  const lines = [];
+  lines.push(`<span class="com">$ equity sentiment track — AI / semis / memory / robotics</span>`);
+  lines.push("");
+  lines.push(`<span class="com">  VARIANT              EQUITY      P&L     OPEN</span>`);
+  for (const r of (eq.runs || [])) {
+    const pnlCls = r.pnl_pct >= 0 ? "buy" : "sell";
+    const nm = (r.name || "").padEnd(18);
+    const bal = ("$" + (r.balance_cents/100).toLocaleString(undefined,{maximumFractionDigits:0})).padStart(10);
+    const pnl = fmtPct(r.pnl_pct).padStart(8);
+    lines.push(`  ${nm} ${bal}  <span class="${pnlCls}">${pnl}</span>  ${String(r.open_positions).padStart(4)}`);
+  }
+  lines.push("");
+  lines.push(`<span class="com">  TOP SIGNALS (composite · z_attn · stance · mentions)</span>`);
+  const sigs = eq.signals || [];
+  if (!sigs.length) {
+    lines.push(`  <span class="com">(building mention history — sentiment variants come online over ~1wk)</span>`);
+  }
+  for (const s of sigs.slice(0, 8)) {
+    const tk = (s.ticker || "").padEnd(6);
+    const c = (Number(s.composite)||0).toFixed(2).padStart(6);
+    const z = (Number(s.z_attn)||0).toFixed(2).padStart(6);
+    const st = (Number(s.stance)||0).toFixed(2).padStart(6);
+    lines.push(`  <span class="mk">${tk}</span> comp ${c}  z ${z}  stance ${st}  m=${s.mentions}`);
+  }
+  lines.push("");
+  lines.push(`<span class="com">  RECENT POSITIONS</span>`);
+  for (const p of (eq.positions || []).slice(0, 8)) {
+    lines.push(`  <span class="mk">${(p.ticker||"").padEnd(6)}</span> ${String(p.shares).padStart(7)} sh @ $${(p.entry_cents/100).toFixed(2)}  <span class="com">${p.run}</span>`);
+  }
+  document.getElementById("equity-stream").innerHTML = lines.join("\n");
+}
+
+function renderTopStats(state) {
+  document.getElementById("s-trades").textContent = (state.stats.trades || 0).toLocaleString();
+  document.getElementById("s-flags").textContent = (state.stats.flags || 0).toLocaleString();
+  document.getElementById("s-runs").textContent = (state.active_runs_summary || []).length;
+  document.getElementById("s-flags-1h").textContent = state.flags_last_hour;
+  document.getElementById("s-trades-1h").textContent = state.trades_last_1h;
+  document.getElementById("s-llm").textContent = state.llm_calls_today;
+  document.getElementById("s-now").textContent = (state.now_utc || "").slice(11, 19);
+}
+
+async function tick() {
+  const params = new URLSearchParams();
+  if (selectedRun) params.set("run", selectedRun);
+  if (selectedFlag) params.set("flag", selectedFlag);
+  try {
+    const r = await fetch("/api/state?" + params.toString(), {cache: "no-store"});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const s = await r.json();
+    renderTopStats(s);
+    renderIngest(s);
+    renderTui(s);
+    renderFlagDetail(s);
+    renderTelegram(s);
+    renderRuns(s);
+    renderRisk(s);
+    renderEquity(s);
+  } catch (e) {
+    console.error("dashboard tick failed", e);
+  }
+}
+
+// Tab switching (persists across reloads).
+const savedTab = localStorage.getItem("polysim_tab");
+if (savedTab) document.body.dataset.tab = savedTab;
+for (const btn of document.querySelectorAll(".tab-btn")) {
+  if (btn.dataset.tab === document.body.dataset.tab) btn.classList.add("active");
+  else btn.classList.remove("active");
+  btn.addEventListener("click", () => {
+    document.body.dataset.tab = btn.dataset.tab;
+    localStorage.setItem("polysim_tab", btn.dataset.tab);
+    for (const b of document.querySelectorAll(".tab-btn"))
+      b.classList.toggle("active", b === btn);
+  });
+}
+
+tick();
+setInterval(tick, REFRESH_MS);
+</script>
+
+</body>
+</html>

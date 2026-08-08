@@ -1,0 +1,58 @@
+# fly.toml app configuration file
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+# Change to your own Fly app name (must be globally unique).
+app = 'my-polysim'
+primary_region = 'iad'
+kill_signal = 'SIGINT'
+kill_timeout = '30s'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  strategy = 'rolling'
+
+[env]
+  POLYSIM_DB = '/data/polysim.db'
+  PYTHONUNBUFFERED = '1'
+
+[processes]
+  live = '/app/deploy/start-live.sh'
+
+[[mounts]]
+  source = 'polysim_data'
+  destination = '/data'
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 8080
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['live']
+
+  [[services.ports]]
+    port = 80
+    handlers = ['http']
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ['tls', 'http']
+
+  [services.concurrency]
+    type = 'connections'
+    hard_limit = 50
+    soft_limit = 25
+
+[[restart]]
+  policy = 'on-failure'
+  retries = 10
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '1gb'
+  processes = ['live']

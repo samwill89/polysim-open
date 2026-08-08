@@ -1,0 +1,34 @@
+# Known exchange / platform hot-wallet addresses on Polygon (MATIC chain).
+# Used by the Polygon enrichment worker to classify a wallet's first
+# inbound transfer as coming from a given funding source.  Match is
+# case-insensitive EXACT address equality (no prefix / fuzzy).
+#
+# Spec gap G2, build plan §1.8.  Review quarterly — hot wallets rotate.
+# These addresses are illustrative and should be cross-checked against
+# Polygonscan labels before relying on them for scoring.
+
+sources:
+  binance:
+    - "0xf977814e90da44bfa03b6295a0616a897441acec"  # Binance: Hot Wallet 20
+    - "0xe7804c37c13166ff0b37f5ae0bb07a3aebb6e245"  # Binance: Hot Wallet (historic)
+    - "0x290275e3db66394c52272398959845170e4dcb88"  # Binance Hot
+
+  coinbase:
+    - "0x71660c4005ba85c37ccec55d0c4493e66fe775d3"  # Coinbase: Hot Wallet 1
+    - "0x28c6c06298d514db089934071355e5743bf21d60"  # Coinbase 2
+    - "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43"  # Coinbase 10
+
+  kraken:
+    - "0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0"  # Kraken 3
+    - "0xa83b11093c858c86321fbc4c20fe82cdbd58e09e"  # Kraken
+
+  okx:
+    - "0x5041ed759dd4afc3a72b8192c143f72f4724081a"  # OKX Hot
+
+  bybit:
+    - "0xf89d7b9c864f589bbf53a82105107622b35eaa40"  # Bybit Hot
+
+  # Bridges — L1↔Polygon
+  polygon_bridge:
+    - "0x40ec5b33f54e0e8a33a975908c5ba1c14e5bbbdf"  # Polygon PoS Bridge
+    - "0x86e4dc95c7fbdbf52e33d563bbdb00823894c287"  # Polygon Plasma Bridge

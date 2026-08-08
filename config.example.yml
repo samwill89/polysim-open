@@ -1,0 +1,260 @@
+# PolySim configuration — copy to config.yml and edit.
+# Spec reference: polysim-spec.md §11; category tiers per §8 + §18 Q4.
+
+run:
+  name: "primary-test-2026-04"
+  mode: "live_paper"                # live_paper | backtest | replay
+  starting_balance_cents: 1000000   # $10,000 paper per §18 Q1
+
+bankroll:
+  max_open_positions: 20
+  max_pct_per_position: 0.02
+  max_pct_per_source_wallet: 0.10
+  max_pct_per_market: 0.05
+  fixed_copy_cents: 5000            # $50 base, scaled by composite (G9)
+
+scoring:
+  flag_threshold: 5.0
+  min_contributing_detectors: 2
+  weights:
+    CategoryInsiderDetector: 3.5
+    EventInsiderDetector: 2.5
+    TimingDetector: 1.5
+    CoordinationDetector: 1.5
+    FreshWalletDetector: 1.0
+
+detectors:
+  category_insider:
+    min_resolved_markets: 8
+  event_insider:
+    fresh_nonce_threshold: 10
+    fresh_size_min_cents: 500000
+    niche_market_vol_max_cents: 50000000
+    contrarian_bps: 1500
+  coordination:
+    window_hours: 24                # G4 — default 24h, config-tunable
+  timing:
+    late_window_hours: 1
+
+investigator:
+  enabled: true                     # §18 Q2 — on from Phase 2
+  model: "claude-opus-4-7"
+  triage_model: "claude-haiku-4-5"
+  min_composite_to_invoke: 6.0
+  min_verdict_confidence_to_act: 0.6
+  max_calls_per_day: 100
+
+fill_model:
+  detection_latency_p50_ms: 3000
+  detection_latency_p95_ms: 10000
+  decision_latency_p50_ms: 2000
+  decision_latency_p95_ms: 15000
+  slippage_ticks: 1
+  on_partial: "ABANDON"             # ABANDON | CHASE
+  fee_bps: 0
+  historical_pessimism_multiplier: 2.0  # G8 — 2x slippage when no live orderbook snapshot
+
+categories:
+  # Tier 1 — primary, operator edge
+  ai:
+    enabled: true
+    tier: primary
+    keywords:
+      - openai
+      - anthropic
+      - gpt
+      - claude
+      - gemini
+      - llama
+      - mistral
+      - xai
+      - meta ai
+      - ai model
+      - model launch
+    examples:
+      - "Will OpenAI release a new model by X?"
+      - "Will Anthropic launch Y by Z?"
+
+  aec:
+    enabled: true
+    tier: primary
+    keywords:
+      - autodesk
+      - procore
+      - bentley
+      - trimble
+      - hexagon
+      - nemetschek
+      - construction software
+      - bim
+    examples:
+      - "Autodesk revenue above X in Q4?"
+
+  creator:
+    enabled: true
+    tier: primary
+    keywords:
+      - mrbeast
+      - youtube
+      - tiktok
+      - twitch
+      - creator
+      - streamer
+    examples:
+      - "MrBeast video X release date?"
+
+  # Tier 1 — primary, operator interest (breadth)
+  geopolitics:
+    enabled: true
+    tier: primary
+    keywords: [election, geopolitics, ceasefire, sanctions, nato, un vote, referendum]
+
+  pop_culture:
+    enabled: true
+    tier: primary
+    keywords: [grammy, oscar, emmy, album release, celebrity, chart]
+
+  box_office:
+    enabled: true
+    tier: primary
+    keywords: [box office, opening weekend, film release, gross, theatrical]
+
+  # Tier 2 — secondary
+  macro_housing:
+    enabled: true
+    tier: secondary
+    keywords: [case-shiller, housing starts, housing permits, mortgage rate, fomc, fed, cpi]
+    note: "kept on deliberately as a detector-quality sanity check"
+
+  tech_ma:
+    enabled: true
+    tier: secondary
+    keywords: [acquisition, merger, takeover, buyout]
+    note: "AEC-adjacent M&A overlaps; opportunistic only"
+
+  crypto_launches:
+    enabled: true
+    tier: secondary
+    keywords: [token unlock, tge, mainnet launch, airdrop]
+
+  # Tier 3 — pilot (off until volume warrants)
+  gov_defense:
+    enabled: false
+    tier: pilot
+    keywords: [dod contract, lockheed, raytheon, northrop, defense award]
+
+# Advisory seed list — calibration only, not a scoring override.
+# Addresses to be populated during Phase 2 backfill. §18 Q5.
+known_insiders:
+  - { label: "AlphaRacoon (Google YIS)",       address: "" }
+  - { label: "OpenAI browser flag (Oct 2025)", address: "" }
+  - { label: "Venezuela cluster",              address: "" }
+  - { label: "Maduro cluster",                 address: "" }
+  - { label: "MrBeast producer",               address: "" }
+
+telegram:
+  enabled: true                     # §18 Q3 — both Telegram and CLI
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  chat_id: "${TELEGRAM_CHAT_ID}"
+
+logging:
+  level: "INFO"
+  json_file: "./logs/polysim.jsonl"
+  rotate_bytes: 10485760            # 10 MB
+  keep_files: 14
+
+# Polymarket + Polygon ingest
+ingest:
+  polymarket_ws_url: "wss://ws-subscriptions-clob.polymarket.com/ws/live-activity"
+  polymarket_gamma_url: "https://gamma-api.polymarket.com"
+  polymarket_data_url: "https://data-api.polymarket.com"
+  polymarket_clob_url: "https://clob.polymarket.com"
+  polygon_rpc_url: "https://polygon-mainnet.g.alchemy.com/v2/{api_key}"
+  polygon_rps_cap: 10
+  funding_sources_path: "./configs/funding_sources.yml"
+  market_indexer_interval_s: 3600     # hourly
+  trade_persist_batch_size: 50
+  trade_persist_max_latency_s: 2.0
+
+# External conversation-signal layer (signals package; docs/signals.md).
+# Credential-less Reddit public JSON. `enabled: false` keeps the live loop
+# off; the manual `polysim signals snapshot` command works regardless.
+# When category_subreddits is empty the map derives from intel_sources
+# below (box_office → r/boxoffice etc).
+signals:
+  enabled: false
+  provider: reddit                  # reddit | fixture | none
+  window_hours: 24                  # activity window per snapshot
+  min_baseline_snapshots: 5         # history rows needed before z-scores fire
+  min_matched_posts: 3              # matched posts for full confidence
+  request_timeout_s: 10
+  snapshot_interval_s: 3600         # live-loop cadence (1h)
+  max_markets_per_snapshot: 40
+  max_subreddits_per_category: 3
+  category_subreddits: {}           # e.g. { box_office: [boxoffice, movies] }
+
+# Credential-free evidence scan: GDELT with Google News RSS rate-limit failover.
+evidence:
+  enabled: false
+  provider: gdelt
+  request_timeout_s: 10
+  max_age_hours: 6
+  lookback_days: 7
+  max_articles: 30
+
+# Off-platform intel sources — one entry per PolySim niche.
+# The `polysim intel sync-all` command pulls every sub/channel listed
+# and runs them through the same interpret + entity-match pipeline.
+# `x:` entries are informational today (no auth path); flipping them on
+# requires an X API key or a twscrape session.
+intel_sources:
+  ai:
+    reddit: [LocalLLaMA, singularity]
+    telegram: []
+    x: [sama, karpathy, emollick]
+  aec:
+    reddit: [revit, StructuralEngineering, RealEstateDevelopment]
+    telegram: []
+    x: [Archinect, ArchDaily]
+  creator:
+    reddit: [NewTubers, CreatorEconomy, PartneredYoutube]
+    telegram: []
+    x: [MrBeastBusiness, jakeeshwar]
+  geopolitics:
+    reddit: [LessCredibleDefence, credibledefense, geopolitics, IRstudies]
+    telegram: []
+    x: [RALee85, Faytuks, Visegrad24]
+  pop_culture:
+    reddit: [Fauxmoi, popculturechat]
+    telegram: []
+    x: [PopCrave, DeuxMoi]
+  box_office:
+    reddit: [boxoffice, Screenwriting, TrueFilm]
+    telegram: []
+    x: [DiscussingFilm, BORosters, Variety]
+  macro_housing:
+    reddit: [REBubble, FluentInFinance, SecurityAnalysis]
+    telegram: []
+    x: [LanceRoberts, DiMartinoBooth, CharlieBilello]
+  tech_ma:
+    reddit: [SecurityAnalysis, valueinvesting]
+    telegram: []
+    x: [TheTranscript_, QCompounding]
+  crypto_launches:
+    reddit: [ethfinance, ethtrader]
+    telegram: [whale_alert, zachxbt, lookonchain, nansen_digest, spaceinsights]
+    x: [0xngmi, hasufl, Arkham]
+  gov_defense:
+    reddit: [credibledefense, WarCollege]
+    telegram: []
+    x: [RALee85, DefenseMaven, ShashankJoshi]
+  elections:
+    reddit: [neoliberal, PoliticalDiscussion]
+    telegram: []
+    x: [NateSilver538, DecisionDeskHQ, CookPolitical]
+  # Pure sports feeds — used for PM markets on game outcomes,
+  # award winners, etc. (not in the spec's 11 niches, but earns its keep).
+  sports:
+    reddit: [sportsbook, soccer]
+    telegram: []
+    x: [BillSimmons, ESPNStatsInfo]

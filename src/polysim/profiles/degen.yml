@@ -1,0 +1,24 @@
+name: degen
+description: >
+  Mirrors the style of "100 to 100k in a month" accounts. Concentrated,
+  uncapped, targeting thin markets at extreme odds. Most runs will blow up.
+  The ones that don't, print.
+position_sizing_mode: percentage
+max_pct_per_position: 0.50
+max_open_positions: 3
+max_pct_per_source_wallet: 1.00
+max_pct_per_market: 1.00
+min_market_odds: 0.01
+max_market_odds: 0.15
+max_market_daily_volume_cents: 5000000
+min_market_daily_volume_cents: 10000
+allowed_detectors:
+  - EventInsiderDetector
+  - FreshWalletDetector
+  - CohortCopy
+min_composite_score: 4.0
+stop_loss_enabled: false
+stop_loss_pct: null
+drawdown_limit_pct: null
+daily_loss_limit_pct: null
+compound_winnings: true

@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PolySim — Annotated Demo</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d;
+    --text:#c9d1d9; --muted:#8b949e; --accent:#58a6ff;
+    --green:#3fb950; --red:#f85149; --yellow:#d29922; --purple:#bc8cff;
+    --term:#010409; --term-text:#e6edf3;
+    --note-bg:#0f1a2b; --note-border:#2d4a6e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55}
+  header{padding:2rem 2.5rem 1.25rem;border-bottom:1px solid var(--border)}
+  header h1{font-size:1.9rem;margin:0 0 .25rem;letter-spacing:-.02em}
+  header h1 .tag{font-size:.6em;color:var(--purple);font-weight:500;letter-spacing:.05em;
+    padding:.1em .5em;border:1px solid var(--purple);border-radius:3px;margin-left:.5em;vertical-align:middle}
+  header .sub{color:var(--muted);margin:0}
+  .banner{display:inline-block;background:rgba(188,140,255,.08);
+    border:1px solid rgba(188,140,255,.35);color:var(--purple);
+    padding:.3rem .8rem;border-radius:4px;font-size:.82rem;
+    margin-top:1rem;font-weight:500}
+  main{padding:1.5rem 2.5rem 2rem;max-width:1600px;margin:0 auto}
+  h2.sect{font-size:1.25rem;margin:2rem 0 .75rem;color:#fff;
+    display:flex;align-items:baseline;gap:.8rem;letter-spacing:-.01em}
+  h2.sect .num{background:var(--purple);color:#0d1117;
+    width:1.8rem;height:1.8rem;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;font-size:.95rem;font-weight:700;flex-shrink:0}
+  h2.sect .sub{color:var(--muted);font-weight:400;font-size:.85rem;font-style:italic;margin-left:auto}
+
+  /* Intro / glossary cards */
+  .intro{background:var(--note-bg);border:1px solid var(--note-border);
+    border-radius:8px;padding:1.25rem 1.5rem;margin-bottom:1.5rem}
+  .intro h3{margin:0 0 .6rem;color:#fff;font-size:1.05rem}
+  .intro p{margin:.4rem 0}
+  .intro p.lead{font-size:.98rem;color:#e6edf3}
+  .intro strong{color:#fff}
+
+  .flow-block{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:.6rem;margin-top:.6rem}
+  .flow-card{background:rgba(88,166,255,.07);border:1px solid rgba(88,166,255,.25);
+    border-radius:6px;padding:.5rem .7rem;font-size:.82rem}
+  .flow-card b{color:var(--accent);display:block;margin-bottom:.15rem;font-size:.78rem;
+    text-transform:uppercase;letter-spacing:.05em}
+
+  .gloss{background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;padding:1rem 1.5rem;margin-bottom:2rem}
+  .gloss h3{margin:0 0 .75rem;color:#fff;font-size:1rem}
+  .gloss dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
+    gap:.15rem 1.5rem;margin:0;font-size:.83rem}
+  .gloss dt{color:var(--accent);font-weight:600;margin-top:.3rem}
+  .gloss dd{margin:0 0 .4rem;color:var(--text)}
+  .gloss dd code{background:rgba(255,255,255,.05);padding:0 4px;border-radius:3px;
+    font-family:'SF Mono',Consolas,monospace;font-size:.85em;color:#a5d0ff}
+
+  /* Panel layout */
+  .split{display:grid;grid-template-columns:minmax(300px,1fr) minmax(0,1.9fr);
+    gap:1.1rem;margin-bottom:1.75rem;align-items:stretch}
+  .split.full{grid-template-columns:minmax(320px,1fr) minmax(0,2.6fr)}
+  .split.tall .panel{min-height:600px}
+
+  .note{background:var(--note-bg);border:1px solid var(--note-border);
+    border-left:4px solid var(--purple);border-radius:8px;padding:1.1rem 1.25rem;
+    font-size:.88rem;line-height:1.55;overflow:auto}
+  .note h4{margin:0 0 .3rem;color:#fff;font-size:.95rem}
+  .note .kicker{color:var(--purple);font-size:.72rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem}
+  .note p{margin:.35rem 0}
+  .note ul{margin:.3rem 0;padding-left:1.1rem}
+  .note li{margin:.3rem 0}
+  .note .hl{color:var(--yellow);font-weight:600}
+  .note strong{color:#fff}
+  .note code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;
+    font-family:'SF Mono',Consolas,monospace;font-size:.82em;color:#a5d0ff}
+  .note .sep{margin:.7rem 0;border:0;border-top:1px dashed var(--border)}
+  .note .row{display:flex;gap:.5rem;align-items:flex-start;margin:.3rem 0}
+  .note .row .chip{background:rgba(188,140,255,.15);color:var(--purple);
+    padding:.05rem .45rem;border-radius:3px;font-size:.7rem;font-weight:700;
+    letter-spacing:.05em;flex-shrink:0;margin-top:.15rem}
+
+  /* Visual panels (copied from demo) */
+  .panel{background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+  .panel-header{display:flex;align-items:center;gap:.75rem;
+    padding:.55rem 1rem;background:#0d1117;border-bottom:1px solid var(--border)}
+  .dots{display:flex;gap:.35rem}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#ff5f56}.dot.y{background:#ffbd2e}.dot.g{background:#27c93f}
+  .panel-title{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:.78rem;color:var(--muted)}
+  .live{margin-left:auto;display:flex;align-items:center;gap:.35rem;
+    font-size:.72rem;color:var(--green);font-weight:600;letter-spacing:.05em}
+  .live::before{content:"";width:7px;height:7px;border-radius:50%;
+    background:var(--green);animation:blink 1.3s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+  .term{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:.72rem;
+    background:var(--term);color:var(--term-text);padding:.9rem;
+    white-space:pre;line-height:1.45;flex:1;overflow:auto;min-height:560px}
+  .term .p{color:var(--green)}.term .ok{color:var(--green)}
+  .term .t{color:var(--muted)}.term .mk{color:var(--accent)}
+  .term .buy{color:var(--green)}.term .sell{color:var(--red)}
+  .term .flag{color:var(--yellow)}.term .arr{color:var(--yellow)}
+  .term .new{color:var(--purple)}.term .hl{color:var(--red);font-weight:600}
+  .term .com{color:var(--muted)}
+  .cur{display:inline-block;width:.55em;height:1em;background:var(--term-text);
+    vertical-align:text-bottom;animation:blink 1s step-end infinite}
+
+  .tui{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:.66rem;
+    background:var(--term);color:var(--term-text);padding:.8rem;
+    white-space:pre;line-height:1.3;flex:1;overflow:auto;min-height:560px}
+  .tui .ok{color:var(--green)}.tui .warn{color:var(--yellow)}
+  .tui .bad{color:var(--red)}.tui .inf{color:var(--accent)}
+  .tui .head{color:var(--purple);font-weight:700}
+
+  .fd{font-family:'SF Mono',Consolas,Monaco,monospace;font-size:.72rem;
+    background:var(--term);color:var(--term-text);padding:.9rem 1rem;
+    white-space:pre;line-height:1.45;flex:1;overflow:auto;min-height:600px}
+  .fd .lbl{color:var(--muted)}.fd .red{color:var(--red)}
+  .fd .grn{color:var(--green)}.fd .acc{color:var(--accent)}
+  .fd .yl{color:var(--yellow)}
+  .fd h{color:var(--purple);font-weight:700;display:inline}
+
+  .tg{background:#0e1621;flex:1;overflow-y:auto;padding:.9rem;
+    display:flex;flex-direction:column;gap:.9rem;min-height:600px}
+  .tgh{background:#17212b;padding:.6rem .8rem;border-radius:6px;
+    display:flex;align-items:center;gap:.65rem;position:sticky;top:-.9rem;
+    z-index:1;margin:-.9rem -.9rem 0}
+  .tgh .av{width:38px;height:38px;border-radius:50%;
+    background:linear-gradient(135deg,#58a6ff,#bc8cff);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;color:#fff;font-size:.85rem}
+  .tgh .nm{font-weight:600;color:#e6edf3;font-size:.88rem}
+  .tgh .st{font-size:.72rem;color:#7d8b97}
+  .msg{background:#182533;border-radius:10px 10px 10px 3px;
+    padding:.7rem .85rem;max-width:92%;align-self:flex-start;
+    font-size:.8rem;line-height:1.5;border-left:3px solid var(--accent)}
+  .msg.fl{border-left-color:var(--yellow)}
+  .msg.op{border-left-color:var(--green)}
+  .msg.cl{border-left-color:var(--red)}
+  .msg.cw{border-left-color:var(--green)}
+  .msg.sm{border-left-color:var(--purple)}
+  .msg .ti{font-weight:600;color:#e6edf3;margin-bottom:.3rem}
+  .msg .tm{font-size:.68rem;color:#7d8b97;text-align:right;margin-top:.4rem}
+  .msg code{background:rgba(255,255,255,.07);padding:1px 5px;
+    border-radius:3px;font-family:'SF Mono',Consolas,monospace;font-size:.85em}
+  .msg em{color:#a5d0ff;font-style:normal}
+  .msg strong{color:#fff}
+  .msg .kv{display:grid;grid-template-columns:auto 1fr;gap:.15rem .6rem;margin-top:.3rem}
+  .msg .kv span:first-child{color:#7d8b97}
+
+  .rp{background:#f6f8fa;color:#1f2328;padding:2rem 2.5rem;
+    font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55;
+    flex:1;overflow-y:auto;max-height:700px}
+  .rp h1{font-size:1.4rem;margin:0 0 .25rem;
+    border-bottom:1px solid #d0d7de;padding-bottom:.4rem}
+  .rp h2{font-size:1.05rem;margin:1.4rem 0 .5rem;
+    border-bottom:1px solid #eaeef2;padding-bottom:.3rem}
+  .rp p,.rp li{font-size:.83rem}
+  .rp .meta{color:#57606a;font-size:.8rem;margin:0 0 1rem}
+  .rp code{background:#eaeef2;padding:1px 5px;border-radius:3px;
+    font-family:'SF Mono',Consolas,monospace;font-size:.8em}
+  .rp table{border-collapse:collapse;margin:.6rem 0;font-size:.78rem;width:100%}
+  .rp th,.rp td{border:1px solid #d0d7de;padding:5px 10px;text-align:left}
+  .rp th{background:#f6f8fa;font-weight:600}
+  .rp .pos{color:#1a7f37}.rp .neg{color:#cf222e}
+  .rp .pass{color:#1a7f37;font-weight:600}
+  .rp .fail{color:#cf222e;font-weight:600}
+  .rp .warn{color:#9a6700;font-weight:600}
+  .rp blockquote{border-left:3px solid #58a6ff;margin:.6rem 0;
+    padding:.3rem .9rem;background:#ddf4ff33;font-size:.82rem;color:#24292f}
+
+  footer{padding:1.5rem 2.5rem;border-top:1px solid var(--border);
+    color:var(--muted);font-size:.8rem}
+
+  @media (max-width:1100px){
+    .split,.split.full{grid-template-columns:1fr}
+    header,main,footer{padding-left:1.25rem;padding-right:1.25rem}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PolySim <span class="tag">ANNOTATED DEMO</span></h1>
+  <p class="sub">Same screens as <code>polysim-demo.html</code>, but every panel now has a plain-English explainer attached</p>
+  <span class="banner">Guided walk-through. Read the purple cards on the left; the black/green screens on the right are what the app actually looks like.</span>
+</header>
+
+<main>
+
+  <!-- ═══════════ THE 30-SECOND PITCH ═══════════ -->
+  <div class="intro">
+    <h3>The 30-second pitch (what PolySim actually does)</h3>
+    <p class="lead">On <strong>Polymarket</strong>, people bet real money on whether things will happen — "Will OpenAI release a model by May?", "Will Autodesk beat earnings?", etc. Every bet is public on a blockchain. Sometimes, the people betting have <strong>inside information</strong> — they know something the rest of the market doesn't.</p>
+    <p class="lead"><strong>PolySim's job:</strong> watch every trade live, profile the wallets making them, and flag the ones whose trading pattern <em>looks like an insider</em>. When it flags one, it simulates copying their bet with fake money — and then, months later, measures whether copying insiders actually makes money.</p>
+    <p class="lead"><strong>It never places a real trade.</strong> The operator (you) can choose to act on what the system shows, but the software itself is strictly read-only on market data and strictly paper-trading on the execution side. That separation is non-negotiable.</p>
+
+    <hr class="sep" style="margin:1rem 0;border:0;border-top:1px solid var(--border)">
+
+    <h3 style="margin-top:1rem">How the system flows (left to right)</h3>
+    <div class="flow-block">
+      <div class="flow-card"><b>1. Ingest</b>Watch Polymarket's live trade stream, save every trade to a local database.</div>
+      <div class="flow-card"><b>2. Profile</b>For each wallet, track: age, funding source, categories traded, win rate.</div>
+      <div class="flow-card"><b>3. Score (detectors)</b>Five rules each score "how insider-like is this?" on a 0-1 scale.</div>
+      <div class="flow-card"><b>4. Compose</b>Combine the five scores into one 0-10 composite. If &gt; 5, we call it a flag.</div>
+      <div class="flow-card"><b>5. Investigate (AI)</b>Claude reads the evidence and judges INFORMED vs LUCKY vs UNCLEAR.</div>
+      <div class="flow-card"><b>6. Paper-trade</b>If INFORMED, open a simulated copy bet, track it to resolution.</div>
+      <div class="flow-card"><b>7. Report</b>After N days, did this strategy beat baselines? Produce the verdict.</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ GLOSSARY ═══════════ -->
+  <div class="gloss">
+    <h3>Jargon decoder (read once, keep nearby)</h3>
+    <dl>
+      <dt>Polymarket</dt><dd>A prediction-market exchange where YES/NO shares in real-world outcomes trade at a price between 0¢ and 100¢. Price ≈ market's estimated probability. Winning shares pay $1, losing pay $0.</dd>
+      <dt>Wallet / address</dt><dd>A blockchain account (<code>0xaf4…0011</code>). Every trader has one. A "fresh" wallet is brand-new.</dd>
+      <dt>Nonce</dt><dd>How many transactions a wallet has ever made. <code>nonce=3</code> means only 3 transactions ever — almost certainly a brand-new account.</dd>
+      <dt>YES / NO share</dt><dd>A bet that something will / won't happen. Buying YES at 32¢ means risking $0.32 to win $1 if YES occurs.</dd>
+      <dt>Mid price</dt><dd>Midpoint between the best buy offer and the best sell offer. Roughly the market consensus.</dd>
+      <dt>Contrarian bet</dt><dd>Betting against the current consensus. "Contrarian +10pts" means buying at 32¢ when the market mid was 22¢.</dd>
+      <dt>Niche market</dt><dd>A market with thin daily trading volume (e.g. &lt; $500K/day). Thin = where insiders are easiest to spot and hardest to fade.</dd>
+      <dt>CLOB</dt><dd>Central Limit Order Book — the system that matches buy and sell orders. Polymarket uses one.</dd>
+      <dt>Funding source</dt><dd>Where a wallet's first deposit came from (Binance, Coinbase, unknown). Clues about the owner.</dd>
+      <dt>Composite score</dt><dd>0–10. PolySim's aggregate insider-likeness rating for one (wallet, market) combo. Threshold to flag: ≥ 5.</dd>
+      <dt>Detector</dt><dd>One of five rules that each score a specific angle: <code>CategoryInsider</code> (win rate in a niche), <code>EventInsider</code> (fresh wallet + big contrarian bet), <code>Fresh</code> (new wallet activity), <code>Coordination</code> (wallets moving together), <code>Timing</code> (late-bet concentration).</dd>
+      <dt>Investigator</dt><dd>Claude (the AI) reading a flag's evidence and issuing a verdict: INFORMED, LUCKY, or UNCLEAR. Filter, not scorer.</dd>
+      <dt>Paper trade</dt><dd>A simulated bet using fake money. PolySim is paper-only, forever. See spec §16.</dd>
+      <dt>Copy trade</dt><dd>Replicating someone else's trade with your own money. The core strategy PolySim tests — copy the flagged insiders, see if it pays.</dd>
+      <dt>Orderbook</dt><dd>The stack of unfilled buy and sell offers. "Walking the book" = filling a big order by eating successively worse prices.</dd>
+      <dt>Slippage</dt><dd>Paying a worse price than you wanted because your order eats through the cheapest offers. Measured in cents per share here.</dd>
+      <dt>Latency</dt><dd>Delay from event to reaction. "8.1s latency" = we opened our copy-trade 8.1 seconds after the insider's trade. Long delays lose edge.</dd>
+      <dt>Fill model</dt><dd>PolySim's simulation of what price + timing a copy-trade would realistically get. The single biggest place where paper results can lie to you, so it's deliberately pessimistic.</dd>
+      <dt>Resolution</dt><dd>When a market's outcome is decided. Winning shares pay $1, losing $0. Sometimes "INVALID" — nobody wins.</dd>
+      <dt>Sharpe / Sortino</dt><dd>Risk-adjusted return metrics. &gt;1 is decent, &gt;2 is strong. Sortino only counts downside volatility.</dd>
+      <dt>Drawdown</dt><dd>Peak-to-trough loss during a run. "Max drawdown -4.8%" = at worst, balance dropped 4.8% below its previous high.</dd>
+      <dt>Shapley attribution</dt><dd>Math for fairly splitting credit for P&L across multiple contributors (each detector here). Prevents "which detector mattered most?" from being a guess.</dd>
+      <dt>Baseline (null / favorite)</dt><dd>Dumb reference strategies we compete against. <strong>Null</strong> = copy random wallets at the same rate. <strong>Favorite</strong> = always buy the current market leader. Our strategy must statistically beat both, or it's not real.</dd>
+      <dt>Kill switch</dt><dd>Automatic safety cutoff. E.g., if drawdown exceeds 20% of starting balance, the system pauses itself and waits for operator confirmation.</dd>
+      <dt>Composite ≥ 5, ≥ 2 detectors</dt><dd>The rule for raising a flag: composite score of at least 5 AND at least two different detectors contributed. Prevents single-detector false alarms.</dd>
+    </dl>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL 1 — TERMINAL (INGEST)
+       ════════════════════════════════════════ -->
+  <h2 class="sect"><span class="num">1</span> The Terminal — live data coming in <span class="sub">command: <code>polysim ingest start</code></span></h2>
+  <div class="split tall">
+    <div class="note">
+      <div class="kicker">What am I looking at?</div>
+      <p>A command-line terminal showing the <strong>ingestion pipeline</strong> as it runs. Every line is a real event happening on Polymarket, arriving via a persistent WebSocket connection. Think of it as a stock ticker for prediction-market bets.</p>
+
+      <hr class="sep">
+      <div class="kicker">Why this exists</div>
+      <p>Before you can detect anything, you need the data. This is the foundation — it listens to Polymarket's firehose, saves every trade to a local database (<code>polysim.db</code>), and enriches each wallet with metadata from the blockchain.</p>
+
+      <hr class="sep">
+      <div class="kicker">How to read the lines</div>
+      <ul>
+        <li><strong>Green lines with <code>→</code></strong> at the top: system status (connection established, services started).</li>
+        <li><strong><code>[14:32:11] TRADE</code> lines</strong>: one trade each. <code>0x8af…c2a1</code> is the wallet; <code>YES@63¢</code> means they bought YES at 63 cents; <code>$150</code> is the trade size.</li>
+        <li><strong><span class="hl">Red "↑" callouts</span></strong>: the system noticing something worth attention ("fresh wallet", "contrarian bet"). These are hints, not flags yet.</li>
+        <li><strong>Yellow <code>FLAG #1842</code></strong>: the moment something crosses threshold — the scorer fires, Claude investigates, and if INFORMED, a paper position opens.</li>
+        <li><strong>Purple <code>NEW_MARKET</code></strong>: a new Polymarket market just went live; we classified it into a category.</li>
+        <li><strong>Purple <code>RESOLVE</code></strong>: a market just paid out; our paper position closed.</li>
+      </ul>
+
+      <hr class="sep">
+      <div class="kicker">The story in this capture</div>
+      <p>Watch wallet <code>0xaf4…0011</code>: at 14:32:22 it makes a big first trade. 22 seconds later, it places a <em>second</em> big trade on an unrelated AI market, betting against consensus. That second trade tips its composite score over 5 → Claude reviews → INFORMED → a $50 paper position opens. <span class="hl">That entire decision pipeline took ~4 seconds.</span></p>
+
+      <hr class="sep">
+      <div class="kicker">What you'd do here</div>
+      <p>Normally, leave it running in a terminal and forget about it. Glance at the heartbeat line (bottom) to confirm data is still flowing. Real monitoring happens in panel 2.</p>
+
+      <div class="row" style="margin-top:.8rem"><span class="chip">SPEC</span><span>§7.1 Ingestor · §14 no-order guarantee</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <span class="panel-title">operator@host ~/polysim — polysim ingest start</span>
+        <span class="live">LIVE</span>
+      </div>
+<pre class="term"><span class="p">$</span> polysim ingest start
+<span class="arr">→</span> Connecting to wss://ws-subscriptions-clob.polymarket.com/ws/live-activity... <span class="ok">connected</span>
+<span class="arr">→</span> Subscribing to fills... <span class="ok">ok</span>
+<span class="arr">→</span> Starting Polygon enrichment worker (Alchemy, 330 rps cap)... <span class="ok">ok</span>
+<span class="arr">→</span> Starting market indexer (hourly)... <span class="ok">ok</span>
+<span class="com">Press Ctrl+C to stop. Streaming fills into ./polysim.db ...</span>
+
+<span class="t">[14:32:11]</span> TRADE  <span class="mk">0x8af…c2a1</span>  <span class="buy">YES@63¢</span>  $150    "Will OpenAI release o4 by May 1?"
+<span class="t">[14:32:14]</span> TRADE  <span class="mk">0x21c…9d83</span>  <span class="sell">NO@72¢</span>   $40     "Will Autodesk beat Q1 revenue?"
+<span class="t">[14:32:19]</span> <span class="new">NEW_MARKET</span>  "Will Anthropic launch Claude 5 by Q3?" <span class="arr">→</span> category:<span class="mk">ai</span>
+<span class="t">[14:32:22]</span> TRADE  <span class="mk">0xaf4…0011</span>  <span class="buy">YES@51¢</span>  $3,200  "Will Procore hit $300M ARR?"
+                     <span class="hl">↑ nonce=3, fresh wallet — queued for profiling</span>
+<span class="t">[14:32:44]</span> TRADE  <span class="mk">0xaf4…0011</span>  <span class="buy">YES@32¢</span>  $1,536  "Will Anthropic launch Claude 5 by Q3?"
+                     <span class="hl">↑ contrarian +10pts vs mid (22¢), niche market ($47k/24h)</span>
+<span class="t">[14:32:44]</span> <span class="flag">FLAG   #1842  composite 8.4</span>
+                     <span class="arr">→</span> investigator (claude-opus-4-7): <span class="flag">INFORMED</span> (0.82) in 4.8s
+                     <span class="arr">→</span> paper position opened in run #5: BUY 150 YES @ 34¢ ($51)
+                     <span class="arr">→</span> telegram alert dispatched
+<span class="t">[14:33:02]</span> TRADE  <span class="mk">0xbb3…45ee</span>  <span class="buy">YES@28¢</span>  $220    "MrBeast 100 Kids Race in May?"
+<span class="t">[14:33:14]</span> TRADE  <span class="mk">0x5c1…ab23</span>  <span class="sell">NO@55¢</span>   $80     "xAI Grok 4 before Claude 5?"
+<span class="t">[14:33:18]</span> TRADE  <span class="mk">0x8af…c2a1</span>  <span class="buy">YES@34¢</span>  $902    "Will Anthropic launch Claude 5 by Q3?"
+                     <span class="hl">↑ 2nd fresh-pair wallet co-entered same niche market (coordination++)</span>
+<span class="t">[14:33:18]</span> <span class="flag">FLAG   #1843  composite 7.1</span>
+                     <span class="arr">→</span> investigator: <span class="flag">INFORMED</span> (0.74)
+                     <span class="arr">→</span> paper position already at per-market cap — skipped
+<span class="t">[14:33:44]</span> TRADE  <span class="mk">0x99e…7712</span>  <span class="buy">YES@14¢</span>  $60     "SpaceX Starship orbital by Jun 1?"
+<span class="t">[14:34:02]</span> <span class="new">RESOLVE</span>  "MrBeast cameo at VidCon?" <span class="arr">→</span> YES  <span class="ok">(our position +$22.40)</span>
+<span class="t">[14:34:11]</span> TRADE  <span class="mk">0x33a…0044</span>  <span class="sell">NO@81¢</span>   $200    "Fed cuts in May FOMC?"
+<span class="t">[14:34:18]</span> TRADE  <span class="mk">0xaf4…0011</span>  <span class="buy">YES@33¢</span>  $420    "Will Anthropic launch Claude 5 by Q3?"
+<span class="t">[14:34:22]</span> TRADE  <span class="mk">0x04f…b812</span>  <span class="buy">YES@47¢</span>  $85     "Bentley acquisition rumors — announced by June?"
+<span class="t">[14:34:29]</span> TRADE  <span class="mk">0xc71…1101</span>  <span class="sell">NO@63¢</span>   $30     "Dune 3 opening weekend > $100M?"
+<span class="t">[14:34:44]</span> <span class="com">[heartbeat] trades 14,018 / 24h  |  wallets 892 new  |  flags 17 / 3 acted</span><span class="cur"></span></pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL 2 — TUI DASHBOARD
+       ════════════════════════════════════════ -->
+  <h2 class="sect"><span class="num">2</span> The Dashboard — everything at a glance <span class="sub">command: <code>polysim dashboard</code></span></h2>
+  <div class="split tall">
+    <div class="note">
+      <div class="kicker">What am I looking at?</div>
+      <p>A <strong>full-screen text dashboard</strong> that updates in place, not by scrolling. Like Task Manager, but for your insider-detection strategy. Think of this as mission control — everything important is visible on one screen.</p>
+
+      <hr class="sep">
+      <div class="kicker">Why this exists</div>
+      <p>Panel 1's terminal is a firehose. You can't watch it all day. The dashboard aggregates and summarizes: <em>what flags fired recently, what positions are open, is the strategy making money, are any safety switches close to tripping?</em> One glance tells you the state of the system.</p>
+
+      <hr class="sep">
+      <div class="kicker">Walking through the six boxes</div>
+      <ul>
+        <li><strong>LIVE FLAGS</strong> (top-left): the last 11 flags, with score and verdict. "INFORMED 8.4" = Claude said insider, composite 8.4/10.</li>
+        <li><strong>OPEN POSITIONS</strong> (top-right): simulated bets currently open. Green = winning on paper, red = losing. "Claude 5 Q3 YES +$13.50" = we bought YES on the Claude 5 market, currently up $13.50.</li>
+        <li><strong>P&amp;L BY CATEGORY</strong> (middle-left): profit by niche. <em>ai</em> is the breadwinner today (+$54). <em>pop_culture</em> is losing — operator should reconsider keeping it enabled.</li>
+        <li><strong>KILL SWITCHES</strong> (middle-right, top): live safety status. Drawdown 0.9% vs 20% limit = plenty of headroom. Investigator 12/100 = we've used 12 of today's 100 Claude calls.</li>
+        <li><strong>SOURCE WALLETS</strong> (middle-right, bottom): which traders we're currently "following." Exposure is capped at 10% per wallet — <code>0xaf4…0011</code> at 4.2% is healthy.</li>
+        <li><strong>BASELINE COMPARISON</strong> (bottom-right): the honest-accountant panel. <strong>p=0.031 ✓</strong> means we're beating random-wallet-copying at 96.9% statistical confidence. Without this, we'd never know if our edge is real.</li>
+      </ul>
+
+      <hr class="sep">
+      <div class="kicker">Keyboard shortcuts (bottom bar)</div>
+      <p><code>F</code> + a flag number pops up the flag detail (that's panel 3). <code>P</code> does the same for positions, <code>W</code> for wallets. <code>R</code> refreshes, <code>Q</code> quits.</p>
+
+      <hr class="sep">
+      <div class="kicker">What you'd do here</div>
+      <p>Check in a couple of times a day. If a number looks weird, drill in with the keyboard shortcuts. If kill switches are yellow/red, pause the run and investigate — the spec requires manual resume after any switch trips.</p>
+
+      <div class="row" style="margin-top:.8rem"><span class="chip">SPEC</span><span>§7.8 Reporter · §14 kill switches</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <span class="panel-title">operator@host ~/polysim — polysim dashboard</span>
+        <span class="live">LIVE</span>
+      </div>
+<pre class="tui"><span class="head">┌─ PolySim Dashboard ─────────────────────────────── 2026-04-19 14:58 UTC ─┐</span>
+│                                                                          │
+│ ┌─ LIVE FLAGS ─────────────────────────┐ ┌─ OPEN POSITIONS (run #5) ───┐ │
+│ │ 14:32  #1842  AI      <span class="inf">INFORMED</span>   8.4 │ │ Claude 5 Q3       YES <span class="ok">+$13.50</span> │ │
+│ │ 13:11  #1841  AI      UNCLEAR    6.2 │ │ Autodesk Q1 rev   NO  <span class="ok">+$3.20</span>  │ │
+│ │ 12:02  #1839  AI      <span class="inf">INFORMED</span>   5.1 │ │ MrBeast Kids      YES <span class="ok">+$15.40</span> │ │
+│ │ 09:55  #1838  AI      UNCLEAR    5.0 │ │ Trimble M&amp;A       YES <span class="ok">+$2.00</span>  │ │
+│ │ 08:30  #1837  AEC     <span class="inf">INFORMED</span>   7.2 │ │ Procore ARR       YES <span class="ok">+$8.00</span>  │ │
+│ │ 07:15  #1836  CREATOR <span class="inf">INFORMED</span>   6.8 │ │ xAI Grok 4        YES <span class="ok">+$7.00</span>  │ │
+│ │ 06:02  #1835  AI      LUCKY      4.8 │ │ OpenAI browser 2  NO  <span class="bad">-$2.00</span>  │ │
+│ │ 04:44  #1834  GEOPOL  <span class="inf">INFORMED</span>   6.4 │ │ Venezuela runoff  YES <span class="ok">+$34.80</span> │ │
+│ │ 02:17  #1833  POPCULT UNCLEAR    5.3 │ │ Grammy AoY        NO  <span class="bad">-$1.50</span>  │ │
+│ │ 01:03  #1832  BOX_OFF <span class="inf">INFORMED</span>   5.9 │ │ Dune 3 &gt;$100M     YES <span class="ok">+$4.20</span>  │ │
+│ │ 23:55  #1831  TECH_MA UNCLEAR    5.1 │ │                                 │ │
+│ └──────────────────────────────────────┘ │ (10/20 open)                    │ │
+│                                          └─────────────────────────────┘ │
+│ ┌─ P&amp;L BY CATEGORY (today) ────────────┐ ┌─ KILL SWITCHES ─────────────┐ │
+│ │ ai              <span class="ok">+$54.20</span>    12 flags   │ │ Drawdown today:  0.9% <span class="ok">✓</span>   │ │
+│ │ aec             <span class="ok">+$12.80</span>     4 flags   │ │ Flag rate (1h):     7 <span class="ok">✓</span>   │ │
+│ │ creator         <span class="ok">+$15.40</span>     2 flags   │ │ Detectors:        5/5 <span class="ok">✓</span>   │ │
+│ │ geopolitics     <span class="ok">+$34.80</span>     1 flag    │ │ NaN quarantine:  none <span class="ok">✓</span>   │ │
+│ │ pop_culture      <span class="bad">-$1.50</span>     1 flag    │ │ Investigator:   12/100     │ │
+│ │ box_office       <span class="ok">+$4.20</span>     1 flag    │ │ API spend today: $1.84     │ │
+│ │ macro_housing    $0.00      0 flags   │ └─────────────────────────────┘ │
+│ │ tech_ma          <span class="ok">+$2.20</span>     1 flag    │ ┌─ SOURCE WALLETS (top) ──────┐ │
+│ │ crypto_launches  $0.00      0 flags   │ │ 0xaf4…0011 4.2%  <span class="ok">+$28</span>     │ │
+│ │ <span class="warn">────────────────────────────────────</span>  │ │ 0x8af…c2a1 3.1%  <span class="ok">+$12</span>     │ │
+│ │ Total           <span class="ok">+$122.10</span>            │ │ 0xbb3…45ee 2.2%  <span class="ok">+$15</span>     │ │
+│ └──────────────────────────────────────┘ │ 0x5c1…ab23 1.8%  <span class="bad">-$3</span>      │ │
+│                                          └─────────────────────────────┘ │
+│ ┌─ INGEST HEARTBEAT ───────────────────┐ ┌─ BASELINE COMPARISON ───────┐ │
+│ │ WS connected 3h 18m │ 47 trades/min  │ │ primary  <span class="ok">+$122.10</span>         │ │
+│ │ Last trade: 0.8s ago │ queue lag 42ms │ │ null     <span class="bad">-$12.04</span>  (p=0.031 <span class="ok">✓</span>)│ │
+│ │ Polygon RPC: ok (18/sec)             │ │ favorite <span class="ok">+$2.88</span>   (p=0.042 <span class="ok">✓</span>)│ │
+│ └──────────────────────────────────────┘ └─────────────────────────────┘ │
+│                                                                          │
+│  [<span class="inf">Q</span>]uit  [<span class="inf">R</span>]efresh  [<span class="inf">F</span>]lag#  [<span class="inf">P</span>]osition#  [<span class="inf">W</span>]allet#  [<span class="inf">?</span>]help        │
+<span class="head">└──────────────────────────────────────────────────────────────────────────┘</span></pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL 3 — FLAG DETAIL
+       ════════════════════════════════════════ -->
+  <h2 class="sect"><span class="num">3</span> Flag detail — "why did you flag this?" <span class="sub">command: <code>polysim flags show 1842</code></span></h2>
+  <div class="split tall">
+    <div class="note">
+      <div class="kicker">What am I looking at?</div>
+      <p>A deep dive on a single flag. When the system says "wallet X is suspicious," this view shows <em>everything</em> it knows: who the wallet is, what they bet on, which detectors contributed to the score, and the AI investigator's case for/against the INFORMED verdict.</p>
+
+      <hr class="sep">
+      <div class="kicker">Why this exists</div>
+      <p>Auditability. Every flag must be <strong>reproducible</strong> (spec §14): given the stored inputs, running the scorer again must produce the identical flag. This view is the receipt — the operator can eyeball the evidence and decide whether the detector is right.</p>
+
+      <hr class="sep">
+      <div class="kicker">Section-by-section</div>
+      <ul>
+        <li><strong>Wallet block</strong>: profile of the actor. "Nonce=3, 2 days old, $12,400 lifetime, no resolved markets yet" = classic fresh account with no track record.</li>
+        <li><strong>Market block</strong>: what they bet on. "$47,200 daily volume" = niche, thin market — hard to trade into without leaving fingerprints.</li>
+        <li><strong>Triggering trade</strong>: the specific bet. "Contrarian +10pts" = they paid 32¢ when consensus was 22¢. That's a 45% premium over market — either informed or crazy.</li>
+        <li><strong>Composite score 8.4/10</strong>: the math behind the flag.
+          <ul>
+            <li>Five detectors each produce a 0-1 score. We multiply by weights and sum.</li>
+            <li>Here: <code>Event × 2.5 = 2.35</code>, <code>Coord × 1.5 = 1.23</code>, <code>Fresh × 1.0 = 0.98</code>. Total = 4.56.</li>
+            <li>The +3.84 "stacked-signal bonus" fires when 3+ detectors all agree with high confidence — heuristic to boost scores on multi-angle evidence. Final 8.40.</li>
+          </ul>
+        </li>
+        <li><strong>Investigator verdict</strong>: Claude's read. Three elements:
+          <ul>
+            <li><span style="color:var(--red)">RED FLAGS</span> — reasons to believe this is insider activity.</li>
+            <li><span style="color:var(--green)">GREEN FLAGS</span> — reasons to be skeptical / alternate explanations. Critical for avoiding confirmation bias.</li>
+            <li><strong>REASONING</strong> — the full argument in plain English.</li>
+          </ul>
+        </li>
+        <li><strong>Acted on: YES</strong>: the system decided to copy. $50 paper position opened 8.1 seconds after the insider's trade, filled at 34¢ vs the insider's 32¢ (2¢ slippage).</li>
+      </ul>
+
+      <hr class="sep">
+      <div class="kicker">The key thing to notice</div>
+      <p>The detectors found the pattern mathematically (<code>EventInsider=0.94</code>). The investigator gave it the narrative check. Both agree → we copy. If the composite were 8.4 but Claude said LUCKY, we'd log it but not act. That's the two-stage filter in action.</p>
+
+      <div class="row" style="margin-top:.8rem"><span class="chip">SPEC</span><span>§7.3 Detectors · §7.5 Investigator · §14 reproducibility</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <span class="panel-title">operator@host ~/polysim — polysim flags show 1842</span>
+      </div>
+<pre class="fd"><span class="h">Flag #1842</span> <span class="lbl">—</span> 2026-04-19 13:44:02 UTC
+<span class="lbl">═══════════════════════════════════════════════════</span>
+
+<span class="lbl">Wallet:</span>    <span class="acc">0xaf4d02c1b5e882f0a7d3c4e5f6a7b8c90011</span>
+           <span class="lbl">First seen:</span>  2026-04-17 (2 days ago)
+           <span class="lbl">Funding:</span>     binance (direct, $5,000 first deposit)
+           <span class="lbl">Nonce:</span>        3
+           <span class="lbl">Lifetime:</span>     $12,400 across 4 trades
+           <span class="lbl">Win rate:</span>     N/A — no resolved markets yet
+
+<span class="lbl">Market:</span>    "Will Anthropic launch Claude 5 by end of Q3 2026?"
+           <span class="lbl">Category:</span>    ai     <span class="lbl">24h volume:</span> $47,200 (niche)
+           <span class="lbl">Created:</span>     2026-04-10   <span class="lbl">Resolves:</span> 2026-09-30
+           <span class="lbl">Current mid:</span> 22¢ YES
+
+<span class="lbl">Triggering trade:</span>
+           2026-04-19 13:44:01 UTC  BUY 4,800 YES @ 32¢ ($1,536)
+           <span class="yl">→ contrarian vs mid by +10pts</span>
+
+<span class="h">Composite score: 8.4 / 10</span>
+  EventInsiderDetector      0.94 × 2.5 = <span class="yl">2.35</span>
+  CoordinationDetector      0.82 × 1.5 = <span class="yl">1.23</span>   (pairs w/ 0x8af…c2a1)
+  FreshWalletDetector       0.98 × 1.0 = <span class="yl">0.98</span>
+  CategoryInsiderDetector   0.00         (insufficient history)
+  TimingDetector            0.00         (not near resolution)
+                                         <span class="lbl">──────</span>
+  Sum                                  = 4.56
+  +stacked-signal bonus                = <span class="yl">+3.84</span>   (3 detectors, all confident)
+  <span class="h">Composite</span>                            = <span class="yl">8.40</span>
+
+<span class="h">Investigator verdict:</span> <span class="acc">INFORMED</span>  (confidence 0.82)
+
+  <span class="red">RED FLAGS</span>
+    • Fresh wallet (nonce=3) placing $1,536 contrarian on niche market
+    • Funding trail matches Oct 2025 OpenAI browser case pattern
+    • Co-occurs with 0x8af…c2a1 in 2 other AI markets (both niche)
+
+  <span class="grn">GREEN FLAGS</span>
+    • Entry size within retail range — not obviously institutional
+    • Could be a new Polymarket power user
+
+  <span class="lbl">REASONING</span>
+    The combination of fresh wallet + contrarian bet + niche market + pair
+    co-occurrence is the strongest insider signature in the training-case
+    set (AlphaRacoon, OpenAI browser, Venezuela cluster). A skilled retail
+    trader would not typically deploy this exact pattern.
+
+<span class="lbl">Acted on:</span>  <span class="grn">YES</span> — paper position opened 13:44:09 UTC (run #5)
+           Copy size: $50 at fill 34¢   slippage 2¢   latency 8.1s
+           source_flag_id = 1842   source_wallet = 0xaf4…0011</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL 4 — TELEGRAM
+       ════════════════════════════════════════ -->
+  <h2 class="sect"><span class="num">4</span> Telegram — push alerts on your phone <span class="sub">channel: <code>@PolySimBot</code></span></h2>
+  <div class="split tall">
+    <div class="note">
+      <div class="kicker">What am I looking at?</div>
+      <p>A simulation of the <strong>Telegram chat</strong> the operator sees on their phone. When important events fire, PolySim pushes a formatted message. Four alert types, each with a color-coded left border.</p>
+
+      <hr class="sep">
+      <div class="kicker">Why this exists</div>
+      <p>You can't watch a terminal all day. Telegram lets PolySim tap you on the shoulder only when it matters. Flag fired? Position resolved for a big win? Daily summary ready? Your phone buzzes. Everything else stays silent.</p>
+
+      <hr class="sep">
+      <div class="kicker">The four alert types</div>
+      <ul>
+        <li><strong>🚩 Flag raised</strong> <span style="color:var(--yellow)">(yellow border)</span> — a new flag crossed threshold and was INFORMED by Claude. Shows the evidence, the paper position that opened.</li>
+        <li><strong>🟢 Position opened</strong> <span style="color:var(--green)">(green border)</span> — confirmation that the simulated trade actually filled. Shows size, price, current exposure.</li>
+        <li><strong>🔴 Position resolved (lost)</strong> <span style="color:var(--red)">(red border)</span> — a market decided and we lost. Shows how much and how long we held.</li>
+        <li><strong>🟩 Position resolved (won)</strong> <span style="color:var(--green)">(green border)</span> — we won. Same details.</li>
+        <li><strong>📊 Daily summary</strong> <span style="color:var(--purple)">(purple border)</span> — 09:00 digest of yesterday: P&amp;L, flags acted, best/worst category, API usage.</li>
+      </ul>
+
+      <hr class="sep">
+      <div class="kicker">Why there's a bot at all</div>
+      <p>The system is designed to be <strong>operator-in-the-loop</strong>. It takes no action in the real world — but it tells you, promptly and in readable form, what it <em>would</em> have done. You can then decide (outside this system, with a clean air gap per spec §16) whether any of this warrants action elsewhere.</p>
+
+      <hr class="sep">
+      <div class="kicker">Settings you'd tweak</div>
+      <p>In <code>config.yml</code>: <code>telegram.enabled</code>, daily summary time, which alert types to enable, per-flag minimum composite to alert on. All optional — CLI-only is also a supported mode.</p>
+
+      <div class="row" style="margin-top:.8rem"><span class="chip">SPEC</span><span>§7.8 Reporter · §18 Q3 (both channels enabled)</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <span class="panel-title">Telegram — @PolySimBot</span>
+      </div>
+      <div class="tg">
+        <div class="tgh">
+          <div class="av">PS</div>
+          <div>
+            <div class="nm">PolySim Bot</div>
+            <div class="st">bot · 4 alert types · today 11 msgs</div>
+          </div>
+        </div>
+
+        <div class="msg fl">
+          <div class="ti">🚩 Flag #1842 &nbsp; composite <strong>8.4</strong> &nbsp; INFORMED (0.82)</div>
+          <div class="kv">
+            <span>Market</span><span>Will Anthropic launch Claude 5 by Q3?</span>
+            <span>Wallet</span><span><code>0xaf4…0011</code> fresh, nonce=3, 2d old</span>
+            <span>Trade</span><span>BUY 4,800 YES @ 32¢ ($1,536)</span>
+            <span>Edge</span><span>contrarian +10pts, niche ($47k/24h)</span>
+          </div>
+          <div><em>Top detectors: Event(0.94), Coord(0.82), Fresh(0.98)</em></div>
+          <div>→ Paper position opened in run #5 ($50)</div>
+          <div class="tm">13:44</div>
+        </div>
+
+        <div class="msg op">
+          <div class="ti">🟢 Position opened &nbsp;·&nbsp; run #5</div>
+          <div>Anthropic Claude 5 by Q3? &nbsp;<strong>YES</strong></div>
+          <div>150 shares @ 34¢ ($51 net of $0.24 fee)</div>
+          <div><em>source: <code>0xaf4…0011</code> · flag #1842</em></div>
+          <div>Exposure: $420 / $10,042 (4.2%)</div>
+          <div class="tm">13:44</div>
+        </div>
+
+        <div class="msg cl">
+          <div class="ti">🔴 Position resolved &nbsp;·&nbsp; run #4</div>
+          <div>OpenAI o3-mini before Jan 31? &nbsp;<strong>YES</strong> &nbsp;→&nbsp; LOST</div>
+          <div>Bought 200 @ 28¢, closed at $0</div>
+          <div>P&amp;L: <strong>-$56.00</strong> &nbsp;·&nbsp; holding 41h</div>
+          <div class="tm">12:02</div>
+        </div>
+
+        <div class="msg cw">
+          <div class="ti">🟩 Position resolved &nbsp;·&nbsp; run #5</div>
+          <div>MrBeast cameo at VidCon? &nbsp;<strong>YES</strong> &nbsp;→&nbsp; WON</div>
+          <div>Bought 80 @ 72¢, closed at $1</div>
+          <div>P&amp;L: <strong>+$22.40</strong> &nbsp;·&nbsp; holding 5h 12m</div>
+          <div class="tm">09:44</div>
+        </div>
+
+        <div class="msg sm">
+          <div class="ti">📊 Daily summary — 2026-04-19</div>
+          <div>Runs: 2 active &nbsp;·&nbsp; #5 primary, #6 null-baseline</div>
+          <div class="kv">
+            <span>Run #5</span><span>+$42.18 (+0.42%) · 11/14 flags acted · 57% win</span>
+            <span>Run #6</span><span>-$12.04 (-0.12%) · null baseline</span>
+            <span>Top cat</span><span>ai (+$54) · geopolitics (+$35)</span>
+            <span>Worst</span><span>box_office (-$2.50)</span>
+            <span>API</span><span>Claude 12/100 · Alchemy 840/3000</span>
+            <span>Switches</span><span>all nominal</span>
+          </div>
+          <div class="tm">09:00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       PANEL 5 — REPORT
+       ════════════════════════════════════════ -->
+  <h2 class="sect"><span class="num">5</span> The Report — the verdict after a run <span class="sub">command: <code>polysim report --run 5 --format md</code></span></h2>
+  <div class="split full tall">
+    <div class="note">
+      <div class="kicker">What am I looking at?</div>
+      <p>The <strong>end-of-run report card</strong>. After a paper run ends (scheduled, or when you stop it), PolySim generates a Markdown document with every metric needed to answer the project's one question: <em>did this strategy work, or did I fool myself?</em></p>
+
+      <hr class="sep">
+      <div class="kicker">Why this exists</div>
+      <p>Success isn't "did I make money in paper." It's "did I beat the obvious baselines at statistical confidence, with realistic fill assumptions, with no hidden reliance on weird edge cases?" The report is where that gets proven — or disproven.</p>
+
+      <hr class="sep">
+      <div class="kicker">Reading the sections</div>
+      <ul>
+        <li><strong>Blockquote at top</strong> — the one-line verdict. <code>PASS/FAIL</code> against the spec's acceptance criteria.</li>
+        <li><strong>1. Headline metrics</strong> — total P&amp;L, Sharpe (risk-adjusted return), Sortino (downside-only version), drawdown, win rate. If Sharpe &lt; 1 or max drawdown &gt; 10%, dig deeper.</li>
+        <li><strong>2. P&amp;L by category</strong> — per-niche breakdown. You learn here which categories <em>actually</em> have edge vs which just add noise. (Spoiler: in this sample, <em>pop_culture</em> lost money. Real-run data would drive a decision to disable it.)</li>
+        <li><strong>3. Detector attribution (Shapley)</strong> — fair credit-assignment across the five detectors. "Event is 42% of P&amp;L" tells you which rules are pulling their weight. Under-performing detectors become refactor targets.</li>
+        <li><strong>4. Baseline comparisons</strong> — the honesty section. Null (copy random wallets) lost money, Favorite (always buy consensus) made a little. Primary beat both with <code>p &lt; 0.05</code>, meaning &lt;5% chance the outperformance was luck. Without this, P&amp;L alone is meaningless.</li>
+        <li><strong>5. Top source wallets</strong> — which insiders we copied profitably. Top contributor gets pinned into <code>known_insiders[]</code> for faster flagging next run.</li>
+        <li><strong>6. Execution drag</strong> — how much edge we <em>lost</em> to latency and slippage vs a perfect (impossible) counterfactual that filled at the insider's exact price. 11% drag on ai means we captured 89% of theoretical edge. This is also the most important table for keeping yourself honest — low drag means your fill model might be too optimistic.</li>
+        <li><strong>7. Calibration plot</strong> — ASCII bar chart. Does higher composite score actually correspond to higher hit rate? Should climb monotonically. Flatness at the top = overconfidence at high scores, something to tune.</li>
+        <li><strong>8. Invalid markets</strong> — markets that resolved "INVALID" (nobody wins). If &gt;10% of closes land here, the strategy is suspect.</li>
+        <li><strong>9. Kill-switch activity</strong> — did any safety mechanism fire? What happened?</li>
+        <li><strong>10. Anomalies &amp; notes</strong> — free-form observations. Usually the actionable next-steps list.</li>
+      </ul>
+
+      <hr class="sep">
+      <div class="kicker">What you'd do here</div>
+      <p>Two things. (1) Read the blockquote + §4 first — did we pass? (2) If yes, read §2 and §6 to decide what to tune before the next run. If no, read the full thing and figure out why.</p>
+
+      <hr class="sep">
+      <div class="kicker">How this gets delivered</div>
+      <p>Produced on demand by <code>polysim report --run N</code>, also auto-written to <code>./reports/</code> when a run stops. Can be opened in any Markdown viewer, GitHub, or the terminal via <code>glow</code>/<code>mdcat</code>.</p>
+
+      <div class="row" style="margin-top:.8rem"><span class="chip">SPEC</span><span>§10 Metrics &amp; evaluation · §7.7 Evaluator</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+        <span class="panel-title">operator@host ~/polysim — polysim report --run 5 --format md &gt; run-5.md</span>
+      </div>
+      <div class="rp">
+        <h1>PolySim Run Report — run #5 <code>primary-test-2026-04-v2</code></h1>
+        <p class="meta"><strong>Window:</strong> 2026-03-20 → 2026-04-19 UTC (30 days) · <strong>Starting balance:</strong> $10,000.00 · <strong>Final:</strong> <span class="pos">$10,312.44 (+3.12%)</span></p>
+
+        <blockquote>Primary strategy beat <strong>both</strong> baselines at <span class="pass">p&lt;0.05</span>. Acceptance criteria satisfied per spec §10.</blockquote>
+
+        <h2>1. Headline metrics</h2>
+        <table>
+          <tr><th>Metric</th><th>Value</th><th>Metric</th><th>Value</th></tr>
+          <tr><td>Total P&amp;L</td><td class="pos">+$312.44</td><td>Win rate</td><td>32/58 = 55%</td></tr>
+          <tr><td>Realized</td><td class="pos">+$248.12</td><td>Avg win / loss</td><td>+$31.20 / -$18.40</td></tr>
+          <tr><td>Sharpe (daily, ann.)</td><td>1.82</td><td>Trades / day</td><td>1.93</td></tr>
+          <tr><td>Sortino</td><td>2.14</td><td>Avg holding</td><td>18h 42m</td></tr>
+          <tr><td>Max drawdown</td><td class="neg">-4.8%</td><td>DD recovered in</td><td>4 days</td></tr>
+        </table>
+
+        <h2>2. P&amp;L by category</h2>
+        <table>
+          <tr><th>Category</th><th>Tier</th><th>P&amp;L</th><th>Flags</th><th>Win%</th><th>Notes</th></tr>
+          <tr><td>ai</td><td>primary</td><td class="pos">+$184.20</td><td>28</td><td>64%</td><td>dominant contributor</td></tr>
+          <tr><td>aec</td><td>primary</td><td class="pos">+$42.80</td><td>9</td><td>56%</td><td>thin but clean</td></tr>
+          <tr><td>creator</td><td>primary</td><td class="pos">+$38.40</td><td>6</td><td>67%</td><td>MrBeast pattern held</td></tr>
+          <tr><td>geopolitics</td><td>primary</td><td class="pos">+$34.80</td><td>3</td><td>67%</td><td>small n, suggestive</td></tr>
+          <tr><td>pop_culture</td><td>primary</td><td class="neg">-$8.50</td><td>4</td><td>25%</td><td>weak edge, reconsider</td></tr>
+          <tr><td>box_office</td><td>primary</td><td class="pos">+$4.20</td><td>2</td><td>50%</td><td>noise-dominated</td></tr>
+          <tr><td>macro_housing</td><td>secondary</td><td class="neg">-$2.40</td><td>3</td><td>33%</td><td>sanity-check as expected</td></tr>
+          <tr><td>tech_ma</td><td>secondary</td><td class="pos">+$18.94</td><td>2</td><td>100%</td><td>tiny sample</td></tr>
+          <tr><td>crypto_launches</td><td>secondary</td><td>$0.00</td><td>1</td><td>—</td><td>flag not acted (cap)</td></tr>
+        </table>
+
+        <h2>3. Detector attribution (Shapley)</h2>
+        <table>
+          <tr><th>Detector</th><th>Share of P&amp;L</th><th>Share of flags</th><th>Notes</th></tr>
+          <tr><td>EventInsiderDetector</td><td class="pos">42%</td><td>38%</td><td>highest per-flag yield</td></tr>
+          <tr><td>CategoryInsiderDetector</td><td class="pos">24%</td><td>21%</td><td>best precision</td></tr>
+          <tr><td>CoordinationDetector</td><td class="pos">19%</td><td>17%</td><td>amplifier, not standalone</td></tr>
+          <tr><td>TimingDetector</td><td class="pos">11%</td><td>14%</td><td>useful near resolution</td></tr>
+          <tr><td>FreshWalletDetector</td><td class="pos">4%</td><td>10%</td><td>lift is via composite only</td></tr>
+        </table>
+
+        <h2>4. Baseline comparisons</h2>
+        <table>
+          <tr><th>Strategy</th><th>P&amp;L</th><th>Win rate</th><th>Sharpe</th><th>p vs primary</th><th>Verdict</th></tr>
+          <tr><td><strong>Primary</strong></td><td class="pos">+$312.44</td><td>55%</td><td>1.82</td><td>—</td><td>—</td></tr>
+          <tr><td>Null (random wallets)</td><td class="neg">-$48.11</td><td>49%</td><td>-0.12</td><td>0.004</td><td class="pass">beat</td></tr>
+          <tr><td>Buy-the-favorite</td><td class="pos">+$61.20</td><td>58%</td><td>0.71</td><td>0.028</td><td class="pass">beat</td></tr>
+        </table>
+
+        <h2>5. Top source wallets</h2>
+        <table>
+          <tr><th>Wallet</th><th>Flags</th><th>Positions</th><th>P&amp;L</th><th>Status</th></tr>
+          <tr><td><code>0xaf4…0011</code></td><td>9</td><td>7</td><td class="pos">+$112.40</td><td>added to known_insiders[]</td></tr>
+          <tr><td><code>0x8af…c2a1</code></td><td>7</td><td>5</td><td class="pos">+$68.20</td><td>co-moves with 0xaf4…0011</td></tr>
+          <tr><td><code>0xbb3…45ee</code></td><td>4</td><td>4</td><td class="pos">+$41.10</td><td>creator niche, new profile</td></tr>
+          <tr><td><code>0x5c1…ab23</code></td><td>3</td><td>2</td><td class="neg">-$12.80</td><td>watchlist, not re-acted</td></tr>
+        </table>
+
+        <h2>6. Execution drag</h2>
+        <p>Paper P&amp;L minus oracle (insider's exact fill) counterfactual. Higher = more edge lost to latency + slippage.</p>
+        <table>
+          <tr><th>Category</th><th>Mean drag</th><th>p95</th><th>Mean latency</th></tr>
+          <tr><td>ai</td><td class="neg">-11%</td><td>-24%</td><td>8.2s (p95 14.4s)</td></tr>
+          <tr><td>aec</td><td class="neg">-14%</td><td>-31%</td><td>9.1s (p95 18.0s)</td></tr>
+          <tr><td>creator</td><td class="neg">-7%</td><td>-18%</td><td>6.8s (p95 11.2s)</td></tr>
+          <tr><td>geopolitics</td><td class="neg">-19%</td><td>-38%</td><td>10.4s (p95 22.1s)</td></tr>
+        </table>
+        <p>Recommend: re-run <code>polysim calibrate fill-model</code> — current p95 latency config (10s) is under-pessimistic for ai/aec.</p>
+
+        <h2>7. Calibration plot</h2>
+        <p>Hit rate by composite-score bucket. Should climb monotonically; flatness at high buckets indicates over-confidence.</p>
+<pre style="font-family:'SF Mono',Consolas,monospace;font-size:.72rem;line-height:1.3;background:#eaeef2;padding:.8rem;border-radius:4px;color:#1f2328">
+  score     n    hit%   bar
+   5.0-5.5  11   45%    ██████████
+   5.5-6.0   9   56%    ████████████
+   6.0-6.5   7   57%    ████████████
+   6.5-7.0   6   67%    ██████████████
+   7.0-7.5   5   60%    █████████████
+   7.5-8.0   4   75%    ████████████████
+   8.0-8.5   3  100%    █████████████████████
+   8.5-9.0   1  100%    █████████████████████</pre>
+        <p>Monotonicity: <span class="pass">✓</span> ·&nbsp; Brier: 0.21 ·&nbsp; mild over-confidence in 7.0-7.5 bucket.</p>
+
+        <h2>8. Invalid / disputed markets</h2>
+        <p>2 of 58 closed positions resolved INVALID (3.4%). Below 10% threshold. <span class="pass">PASS</span></p>
+
+        <h2>9. Kill-switch activity</h2>
+        <ul>
+          <li>Drawdown switch: not triggered (peak intraday DD -2.1%)</li>
+          <li>Flag-rate switch: triggered once 2026-04-11 (102/hr, election night). Auto-paused, resumed 42 min later.</li>
+          <li>NaN quarantine: none</li>
+        </ul>
+
+        <h2>10. Anomalies &amp; notes</h2>
+        <ul>
+          <li>Pop-culture tier lost money despite primary classification — operator to consider demotion.</li>
+          <li><code>0xaf4…0011</code> + <code>0x8af…c2a1</code> confirmed co-moving pair; candidates for <code>known_insiders[]</code> pin (spec §18 Q5).</li>
+          <li>Investigator lift over composite-only: FP rate <strong>-37%</strong>, TP retention <strong>92%</strong> — satisfies Phase 3 acceptance.</li>
+        </ul>
+
+        <p class="meta" style="margin-top:2rem">Generated 2026-04-19 17:03 UTC · <span class="pass">Acceptance: PASS</span> · <span class="warn">Note: fill-model under-pessimistic, re-calibrate before next run.</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ WRAP-UP ═══════════ -->
+  <div class="intro">
+    <h3>Wrap-up — putting it all together</h3>
+    <p>You've just seen, in order: raw data coming in (1), a compact summary of everything (2), the deep-dive when something suspicious happens (3), the phone buzz that tells you about it (4), and the final verdict after a month of operation (5). Those five surfaces are the entire user-facing footprint of PolySim — there is no web UI, no hosted version, no multi-user system. One operator, one laptop, one database file.</p>
+    <p>The whole thing is read-only on the outside world: it looks at public Polymarket data, it looks at public blockchain data, it calls Claude for analysis. It never signs a transaction or places an order. If you, the operator, ever decide to act on what it shows — that happens outside this system, in your own head and your own hands. <strong>That air gap is load-bearing and intentional.</strong></p>
+    <p>Next step from here: approve the build plan (<code>polysim-buildplan.md</code>) and start at Phase 0, task 0.1.</p>
+  </div>
+
+</main>
+
+<footer>
+  <div><strong>polysim-demo-annotated.html</strong> · companion to <code>polysim-demo.html</code> · single-file static demo · open in any browser</div>
+</footer>
+
+</body>
+</html>

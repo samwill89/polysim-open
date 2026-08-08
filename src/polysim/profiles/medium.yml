@@ -1,0 +1,25 @@
+name: medium
+description: >
+  Middle ground. Concentrated but not reckless. Kelly-sized with conservative
+  fraction. Filters for slightly higher-odds markets.
+position_sizing_mode: kelly_fractional
+kelly_fraction: 0.25
+max_pct_per_position: 0.10
+max_open_positions: 8
+max_pct_per_source_wallet: 0.25
+max_pct_per_market: 0.15
+min_market_odds: 0.10
+max_market_odds: null
+max_market_daily_volume_cents: 20000000
+min_market_daily_volume_cents: 100000
+allowed_detectors:
+  - CategoryInsiderDetector
+  - EventInsiderDetector
+  - TimingDetector
+  - CohortCopy
+min_composite_score: 6.0
+stop_loss_enabled: true
+stop_loss_pct: 0.70
+drawdown_limit_pct: 0.40
+daily_loss_limit_pct: 0.15
+compound_winnings: true

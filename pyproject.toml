@@ -1,0 +1,138 @@
+[project]
+name = "polysim"
+version = "0.1.0"
+description = "Prediction-market insider detection and paper copy-trading simulator."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "All rights reserved" }
+
+dependencies = [
+    "aiosqlite>=0.20",
+    "httpx>=0.27",
+    "websockets>=13",
+    "typer>=0.12",
+    "rich>=13.7",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "anthropic>=0.40",
+    "web3>=7.0",
+    "python-telegram-bot>=21",
+    "networkx>=3.3",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "tzdata>=2024.1",  # Windows: zoneinfo needs explicit tzdata
+    "telethon>=1.36",  # Tier-3 user-account scraper for intel channels
+    "polars>=1.0",     # Empirical-priors §3: feature extraction over poly_data
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "respx>=0.21",
+    "types-PyYAML",
+]
+
+[project.scripts]
+polysim = "polysim.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/polysim"]
+
+# ────────────────────────────────────────────
+# Ruff — lint + format
+# ────────────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "B",         # bugbear
+    "UP",        # pyupgrade
+    "SIM",       # simplify
+    "ASYNC",     # async pitfalls
+    "RUF",       # ruff-specific
+    "N",         # pep8-naming
+    "T20",       # no print() in src
+]
+ignore = [
+    "E501",      # line length enforced by formatter
+    "ASYNC240",  # pathlib.Path in async: we use asyncio, not trio/anyio; paths are cheap
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["T20", "PLR2004"]
+"scripts/**" = ["T20"]
+"src/polysim/cli.py" = ["T20", "B008"]   # CLI prints; typer.Option() in default args is idiomatic
+
+[tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+
+# ────────────────────────────────────────────
+# mypy — strict
+# ────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+ignore_missing_imports = true  # many upstream libs lack stubs
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "polysim.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ────────────────────────────────────────────
+# pytest
+# ────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: deselect with -m 'not slow'",
+    "integration: requires fixtures/network/DB",
+    "backtest: long-running backtest replays",
+    "fidelity: §9.4 replay fidelity tests — enable for nightly runs with -m fidelity",
+]
+
+[tool.coverage.run]
+source = ["src/polysim"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

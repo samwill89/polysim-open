@@ -1,0 +1,40 @@
+# Don't ship the operator's local DB into the image — it goes onto the volume instead
+polysim.db
+polysim.db-shm
+polysim.db-wal
+
+# Local venv
+.venv/
+
+# Local credentials and operator-only config
+.env
+.env.*
+*.env
+
+# Build artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local logs / reports / Claude session state
+logs/
+reports/
+.claude/
+
+# Git internals (Docker doesn't need them at runtime)
+.git/
+.gitignore
+
+# Spec PDFs / large docs
+*.pdf
