@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Prediction-market insider detection and paper copy-trading simulator."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "All rights reserved" }
+license = { text = "MIT" }
 
 dependencies = [
     "aiosqlite>=0.20",
